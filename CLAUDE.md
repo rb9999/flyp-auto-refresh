@@ -48,6 +48,7 @@ The extension targets Ant Design UI buttons. If Flyp updates their UI, the butto
   - Marketplace from image alt attributes or "Sold on" text
   - Status from `.ant-tag-success`
   - Image from `.ant-image img`
+  - Error messages from `.ant-alert-error .ant-alert-message` (e.g., "Facebook unable to delist: A server error field_exception occured")
 - Maintains `processedNotifications` Set to prevent duplicate Discord messages (keeps last 50)
 
 ### State Management
@@ -58,6 +59,7 @@ The extension targets Ant Design UI buttons. If Flyp updates their UI, the butto
 ### Discord Webhooks
 - Validates webhook URL must start with `https://discord.com/api/webhooks/`
 - Sends rich embeds with sale data
+- If error message is present, adds a warning field and changes embed color to orange (16744192)
 - Error handling for failed webhook requests (logs to console)
 
 ## Development Commands

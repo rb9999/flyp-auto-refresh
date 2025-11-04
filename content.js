@@ -130,7 +130,18 @@ async function sendDiscordNotification(saleData) {
         inline: false
       });
     }
-    
+
+    // Add error message if present
+    if (saleData.errorMessage) {
+      embed.fields.push({
+        name: "⚠️ Error",
+        value: saleData.errorMessage,
+        inline: false
+      });
+      // Change embed color to orange/yellow if there's an error
+      embed.color = 16744192; // Orange color for warnings
+    }
+
     // Add thumbnail image if available
     if (saleData.imageUrl) {
       embed.thumbnail = {
@@ -171,7 +182,8 @@ function extractSaleData(notification) {
     price: '',
     marketplace: '',
     status: '',
-    imageUrl: ''
+    imageUrl: '',
+    errorMessage: ''
   };
   
   try {
@@ -258,12 +270,20 @@ function extractSaleData(notification) {
         saleData.itemName = 'New sale detected';
       }
     }
-    
+
+    // Extract error message if present
+    const errorAlert = notification.querySelector('.ant-alert-error .ant-alert-message');
+    if (errorAlert) {
+      // Get the full text content, which includes the marketplace link text and error message
+      saleData.errorMessage = errorAlert.textContent.trim();
+      console.log('Error message:', saleData.errorMessage);
+    }
+
   } catch (error) {
     console.error('Flyp Auto Refresh: Error extracting sale data', error);
     saleData.itemName = 'Sale notification detected';
   }
-  
+
   return saleData;
 }
 
