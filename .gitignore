@@ -1,0 +1,30 @@
+# Chrome Extension
+*.pem
+*.crx
+*.zip
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Node modules (if you add build tools later)
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
