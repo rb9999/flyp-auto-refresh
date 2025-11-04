@@ -153,6 +153,29 @@
       text-align: center;
       border: 1px solid #e0e0e0;
     }
+
+    .coffee-btn {
+      width: 100%;
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #FFDD00;
+      color: #000000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .coffee-btn:hover {
+      background-color: #FFED4E;
+    }
   </style>
 </head>
 <body>
@@ -192,7 +215,17 @@
     <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Next refresh in:</div>
     <div id="countdownTimer" style="font-size: 20px; font-weight: bold; color: #4CAF50;">--:--</div>
   </div>
-  
+
+  <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+    <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 8px;">
+      Enjoy the app? Help support my work.
+    </div>
+    <button class="coffee-btn" id="coffeeBtn">
+      <span>☕</span>
+      <span>Buy Me a Coffee</span>
+    </button>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

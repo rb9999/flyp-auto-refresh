@@ -142,15 +142,15 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus('Error: No active tab found');
         return;
       }
-      
+
       const currentUrl = tabs[0].url;
       console.log('Current URL:', currentUrl);
-      
+
       if (!currentUrl || !currentUrl.includes('tools.joinflyp.com')) {
         showStatus('Please navigate to tools.joinflyp.com/orders first');
         return;
       }
-      
+
       chrome.tabs.sendMessage(tabs[0].id, {
         action: 'manualRefresh'
       }, (response) => {
@@ -166,5 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     });
+  });
+
+  // Buy Me a Coffee button
+  const coffeeBtn = document.getElementById('coffeeBtn');
+  coffeeBtn.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://buymeacoffee.com/rb9999' });
   });
 });

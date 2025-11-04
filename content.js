@@ -317,32 +317,38 @@ function startNotificationMonitoring() {
           
           // Process each notification
           notifications.forEach((notification) => {
-            // Create a unique ID for this notification to avoid duplicates
-            const itemNameEl = notification.querySelector('.ant-typography-ellipsis');
-            const notifId = itemNameEl ? itemNameEl.textContent.substring(0, 100) : notification.textContent.substring(0, 100);
-            
-            if (!processedNotifications.has(notifId)) {
-              processedNotifications.add(notifId);
-              
-              // Clean up old processed notifications (keep last 50)
-              if (processedNotifications.size > 50) {
-                const firstItem = processedNotifications.values().next().value;
-                processedNotifications.delete(firstItem);
-              }
-              
-              console.log('Flyp Auto Refresh: New sale notification detected!', notification);
-              
+            console.log('Flyp Auto Refresh: New sale notification detected!', notification);
+
+            // Wait 500ms before processing to ensure all elements (including error messages) have loaded
+            setTimeout(() => {
               // Extract sale data
               const saleData = extractSaleData(notification);
-              
+
               console.log('Flyp Auto Refresh: Extracted sale data:', saleData);
-              
-              // Send to Discord if webhook is configured
-              if (webhookUrl && (saleData.itemName || saleData.price)) {
-                console.log('Flyp Auto Refresh: Sending sale notification to Discord');
-                sendDiscordNotification(saleData);
+
+              // Create a unique ID using item name + price + timestamp (rounded to nearest 10 seconds)
+              // This prevents true duplicates but allows same item to sell multiple times
+              const timestamp = Math.floor(Date.now() / 10000); // Round to 10-second intervals
+              const notifId = `${saleData.itemName}_${saleData.price}_${timestamp}`;
+
+              if (!processedNotifications.has(notifId)) {
+                processedNotifications.add(notifId);
+
+                // Clean up old processed notifications (keep last 50)
+                if (processedNotifications.size > 50) {
+                  const firstItem = processedNotifications.values().next().value;
+                  processedNotifications.delete(firstItem);
+                }
+
+                // Send to Discord if webhook is configured
+                if (webhookUrl && (saleData.itemName || saleData.price)) {
+                  console.log('Flyp Auto Refresh: Sending sale notification to Discord');
+                  sendDiscordNotification(saleData);
+                }
+              } else {
+                console.log('Flyp Auto Refresh: Duplicate notification ignored', notifId);
               }
-            }
+            }, 500);
           });
         }
       });
