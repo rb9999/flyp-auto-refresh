@@ -8,8 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDiv = document.getElementById('status');
   const countdownDiv = document.getElementById('countdown');
   const countdownTimer = document.getElementById('countdownTimer');
-  
+  const updateBanner = document.getElementById('updateBanner');
+  const updateText = document.getElementById('updateText');
+
   let countdownInterval = null;
+
+  // Check for updates
+  checkForUpdates();
   
   // Load current settings
   chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) => {
@@ -173,4 +178,64 @@ document.addEventListener('DOMContentLoaded', () => {
   coffeeBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://buymeacoffee.com/rb9999' });
   });
+
+  // Check for updates function
+  async function checkForUpdates() {
+    try {
+      // Get current version from manifest
+      const manifest = chrome.runtime.getManifest();
+      const currentVersion = manifest.version;
+
+      // Check if we've already checked today
+      const lastCheck = await chrome.storage.local.get(['lastUpdateCheck']);
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+
+      if (lastCheck.lastUpdateCheck && (now - lastCheck.lastUpdateCheck) < oneDayMs) {
+        // Already checked today, skip
+        return;
+      }
+
+      // Fetch latest release from GitHub
+      const response = await fetch('https://api.github.com/repos/rb9999/flyp-auto-refresh/releases/latest');
+      if (!response.ok) {
+        console.log('Could not check for updates:', response.status);
+        return;
+      }
+
+      const release = await response.json();
+      const latestVersion = release.tag_name.replace('v', ''); // Remove 'v' prefix
+
+      // Store last check time
+      chrome.storage.local.set({ lastUpdateCheck: now });
+
+      // Compare versions
+      if (compareVersions(latestVersion, currentVersion) > 0) {
+        // New version available
+        updateText.textContent = `🆕 Version ${latestVersion} available! Click to download`;
+        updateBanner.style.display = 'block';
+        updateBanner.addEventListener('click', () => {
+          chrome.tabs.create({ url: release.html_url });
+        });
+      }
+    } catch (error) {
+      console.log('Error checking for updates:', error);
+    }
+  }
+
+  // Compare version strings (e.g., "1.2" vs "1.1")
+  function compareVersions(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+      const num1 = parts1[i] || 0;
+      const num2 = parts2[i] || 0;
+
+      if (num1 > num2) return 1;
+      if (num1 < num2) return -1;
+    }
+
+    return 0;
+  }
 });

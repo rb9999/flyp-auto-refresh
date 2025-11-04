@@ -8,7 +8,8 @@
     "storage"
   ],
   "host_permissions": [
-    "https://tools.joinflyp.com/*"
+    "https://tools.joinflyp.com/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "background.js"
