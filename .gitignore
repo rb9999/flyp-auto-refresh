@@ -12,6 +12,7 @@ desktop.ini
 .vscode/
 .idea/
 .claude/
+CLAUDE.md
 *.swp
 *.swo
 *~

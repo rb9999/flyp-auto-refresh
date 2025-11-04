@@ -6,9 +6,54 @@ let nextRefreshTime = null; // Track when the next refresh will happen
 let webhookUrl = ''; // Discord webhook URL
 let notificationObserver = null; // MutationObserver for notifications
 let processedNotifications = new Set(); // Track processed notifications to avoid duplicates
+let killSwitchActive = false; // Track if extension has been remotely disabled
+let killSwitchCheckInterval = null; // Interval for checking kill switch
+
+// Function to check kill switch status
+async function checkKillSwitch() {
+  try {
+    const response = await fetch('https://raw.githubusercontent.com/rb9999/flyp-auto-refresh/main/status.json', {
+      cache: 'no-store' // Always get fresh data
+    });
+
+    if (!response.ok) {
+      console.log('Flyp Auto Refresh: Could not check kill switch status');
+      return;
+    }
+
+    const status = await response.json();
+
+    if (status.active === false) {
+      console.log('Flyp Auto Refresh: Extension has been remotely disabled');
+      killSwitchActive = true;
+      stopAutoRefresh();
+
+      if (notificationObserver) {
+        notificationObserver.disconnect();
+        notificationObserver = null;
+      }
+
+      // Show alert to user if there's a message
+      if (status.message) {
+        alert(`Flyp Auto Refresh: ${status.message}`);
+      } else {
+        alert('Flyp Auto Refresh has been temporarily disabled. Please check for updates.');
+      }
+    } else {
+      killSwitchActive = false;
+    }
+  } catch (error) {
+    console.log('Flyp Auto Refresh: Error checking kill switch', error);
+  }
+}
 
 // Function to click the refresh button
 function clickRefreshButton() {
+  if (killSwitchActive) {
+    console.log('Flyp Auto Refresh: Extension is disabled via kill switch');
+    return false;
+  }
+
   let targetButton = null;
   
   // Strategy 1: Look for the Ant Design button with redo icon and "Refresh" text
@@ -55,10 +100,15 @@ function clickRefreshButton() {
 
 // Function to start auto-refresh
 function startAutoRefresh() {
+  if (killSwitchActive) {
+    console.log('Flyp Auto Refresh: Cannot start - extension is disabled via kill switch');
+    return;
+  }
+
   if (autoRefreshInterval) {
     clearInterval(autoRefreshInterval);
   }
-  
+
   if (isEnabled) {
     console.log(`Flyp Auto Refresh: Starting auto-refresh every ${refreshIntervalMinutes} minutes`);
     
@@ -293,11 +343,16 @@ function extractSaleData(notification) {
 
 // Function to monitor for sale notifications
 function startNotificationMonitoring() {
+  if (killSwitchActive) {
+    console.log('Flyp Auto Refresh: Cannot start monitoring - extension is disabled via kill switch');
+    return;
+  }
+
   // Stop existing observer if any
   if (notificationObserver) {
     notificationObserver.disconnect();
   }
-  
+
   console.log('Flyp Auto Refresh: Starting notification monitoring for sale popups');
   
   // Create a MutationObserver to watch for new notifications
@@ -407,22 +462,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Load settings from storage and start
-chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) => {
+chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], async (result) => {
   isEnabled = result.enabled !== false; // Default to true
   refreshIntervalMinutes = result.intervalMinutes || 30;
   webhookUrl = result.webhookUrl || '';
-  
+
+  // Check kill switch first
+  await checkKillSwitch();
+
+  if (killSwitchActive) {
+    console.log('Flyp Auto Refresh: Extension is disabled via kill switch');
+    return;
+  }
+
   if (isEnabled) {
     startAutoRefresh();
   }
-  
+
   // Start notification monitoring if webhook is configured
   if (webhookUrl) {
     startNotificationMonitoring();
   }
+
+  // Check kill switch every hour
+  killSwitchCheckInterval = setInterval(checkKillSwitch, 60 * 60 * 1000); // 1 hour
 });
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   stopAutoRefresh();
+  if (killSwitchCheckInterval) {
+    clearInterval(killSwitchCheckInterval);
+  }
 });
