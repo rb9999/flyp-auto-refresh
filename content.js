@@ -446,6 +446,9 @@ function startNotificationMonitoring() {
 
   // Create a MutationObserver to watch for new notifications AND changes within them
   notificationObserver = new MutationObserver((mutations) => {
+    // Track which notifications we've seen in THIS mutation batch to avoid reprocessing
+    const seenNotifications = new WeakSet();
+
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === 1) { // Element node
@@ -455,18 +458,50 @@ function startNotificationMonitoring() {
           // Look for the specific Flyp notification class
           if (node.classList && node.classList.contains('new-sales-floating-container__inner')) {
             notifications.push(node);
+            console.log('Flyp Auto Refresh: New notification container detected!');
           }
 
           // Also check children for the notification container
           if (node.querySelectorAll) {
             const foundNotifications = node.querySelectorAll('.new-sales-floating-container__inner');
+            if (foundNotifications.length > 0) {
+              console.log(`Flyp Auto Refresh: Found ${foundNotifications.length} notification container(s) in added node`);
+            }
             notifications.push(...Array.from(foundNotifications));
+          }
+
+          // Check if this node was added inside an existing notification container
+          // This catches when new sale items are added to an existing popup
+          if (node.closest && node.closest('.new-sales-floating-container__inner')) {
+            const container = node.closest('.new-sales-floating-container__inner');
+            console.log('Flyp Auto Refresh: Content added to existing notification container!');
+            notifications.push(container);
           }
 
           // Process each notification - check for all sale items inside
           notifications.forEach((notification) => {
-            console.log('Flyp Auto Refresh: New sale notification detected!', notification);
-            processSaleItems(notification);
+            // Only process each notification container once per mutation batch
+            if (!seenNotifications.has(notification)) {
+              seenNotifications.add(notification);
+              console.log('Flyp Auto Refresh: Processing notification container', notification);
+
+              // Check if ReactVirtualized content is present (Flyp uses it for sale lists)
+              const hasVirtualized = notification.querySelector('.ReactVirtualized__Grid, .ReactVirtualized__List');
+
+              if (hasVirtualized) {
+                console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
+                // ReactVirtualized needs more time to render content
+                // Try multiple times with increasing delays to catch all items
+                setTimeout(() => processSaleItems(notification), 200);
+                setTimeout(() => processSaleItems(notification), 500);
+                setTimeout(() => processSaleItems(notification), 1000);
+              } else {
+                // Regular content, just add a small delay
+                setTimeout(() => {
+                  processSaleItems(notification);
+                }, 100);
+              }
+            }
           });
         }
       });
