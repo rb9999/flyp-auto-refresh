@@ -442,16 +442,26 @@ function startNotificationMonitoring() {
     notificationObserver.disconnect();
   }
 
+  console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
+  console.log(`🔍 [DEBUG] Notification monitoring started at ${new Date().toLocaleTimeString()}`);
+  console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
   console.log('Flyp Auto Refresh: Starting notification monitoring for sale popups');
 
   // Create a MutationObserver to watch for new notifications AND changes within them
   notificationObserver = new MutationObserver((mutations) => {
+    // DEBUG: Log when mutations are detected
+    console.log(`🔍 [DEBUG] MutationObserver fired with ${mutations.length} mutation(s)`);
+
     // Track which notifications we've seen in THIS mutation batch to avoid reprocessing
     const seenNotifications = new WeakSet();
 
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
+    mutations.forEach((mutation, mutationIndex) => {
+      console.log(`🔍 [DEBUG] Mutation ${mutationIndex + 1}: ${mutation.addedNodes.length} node(s) added`);
+
+      mutation.addedNodes.forEach((node, nodeIndex) => {
         if (node.nodeType === 1) { // Element node
+          console.log(`🔍 [DEBUG] Node ${nodeIndex + 1}: ${node.tagName}${node.className ? '.' + node.className.split(' ').join('.') : ''}`);
+
           // Check if this is the Flyp sale notification container
           let notifications = [];
 
@@ -459,6 +469,7 @@ function startNotificationMonitoring() {
           if (node.classList && node.classList.contains('new-sales-floating-container__inner')) {
             notifications.push(node);
             console.log('Flyp Auto Refresh: New notification container detected!');
+            console.log('🔍 [DEBUG] ✅ Direct match: node IS notification container');
           }
 
           // Also check children for the notification container
@@ -466,6 +477,7 @@ function startNotificationMonitoring() {
             const foundNotifications = node.querySelectorAll('.new-sales-floating-container__inner');
             if (foundNotifications.length > 0) {
               console.log(`Flyp Auto Refresh: Found ${foundNotifications.length} notification container(s) in added node`);
+              console.log(`🔍 [DEBUG] ✅ Child match: found ${foundNotifications.length} container(s) inside node`);
             }
             notifications.push(...Array.from(foundNotifications));
           }
@@ -475,7 +487,12 @@ function startNotificationMonitoring() {
           if (node.closest && node.closest('.new-sales-floating-container__inner')) {
             const container = node.closest('.new-sales-floating-container__inner');
             console.log('Flyp Auto Refresh: Content added to existing notification container!');
+            console.log(`🔍 [DEBUG] ✅ Parent match: node added INSIDE existing container`);
             notifications.push(container);
+          }
+
+          if (notifications.length === 0) {
+            console.log('🔍 [DEBUG] ❌ No notification containers found for this node');
           }
 
           // Process each notification - check for all sale items inside
@@ -490,17 +507,31 @@ function startNotificationMonitoring() {
 
               if (hasVirtualized) {
                 console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
+                console.log('🔍 [DEBUG] Scheduling 3 processing attempts: 200ms, 500ms, 1000ms');
                 // ReactVirtualized needs more time to render content
                 // Try multiple times with increasing delays to catch all items
-                setTimeout(() => processSaleItems(notification), 200);
-                setTimeout(() => processSaleItems(notification), 500);
-                setTimeout(() => processSaleItems(notification), 1000);
+                setTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 200ms delay');
+                  processSaleItems(notification);
+                }, 200);
+                setTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 500ms delay');
+                  processSaleItems(notification);
+                }, 500);
+                setTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 1000ms delay');
+                  processSaleItems(notification);
+                }, 1000);
               } else {
+                console.log('🔍 [DEBUG] No ReactVirtualized detected, scheduling single 100ms processing');
                 // Regular content, just add a small delay
                 setTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 100ms delay');
                   processSaleItems(notification);
                 }, 100);
               }
+            } else {
+              console.log('🔍 [DEBUG] ⏭️  Skipping duplicate notification in this mutation batch');
             }
           });
         }
