@@ -300,6 +300,13 @@ function processSaleItems(container) {
 
   console.log(`Found ${saleItems.length} sale item(s)`);
 
+  // First, find all error alerts in the container
+  const allErrorAlerts = container.querySelectorAll('.ant-alert-error');
+  console.log(`Found ${allErrorAlerts.length} error alert(s) in container`);
+
+  // Create array of sale containers with their positions
+  const saleContainerData = [];
+
   saleItems.forEach((itemElement, index) => {
     console.log(`Processing sale item ${index + 1}`);
 
@@ -353,35 +360,39 @@ function processSaleItems(container) {
       saleData.status = statusTag.textContent.trim();
     }
 
-    // Extract error message if present - look for error alert that follows this sale item
-    // The error appears as a sibling element between sale items, not inside the sale container
-    console.log(`Looking for error alert after sale item ${index + 1}...`);
+    // Find error alert by comparing positions in DOM
+    // The error that appears AFTER this sale but BEFORE the next sale belongs to this sale
+    console.log(`Looking for error alert associated with sale item ${index + 1}...`);
 
-    // Start from the sale container and look for the next error alert element
-    let currentElement = saleContainer.nextElementSibling;
-    let foundError = false;
+    // Get all children of the container as an array for position comparison
+    const allChildren = Array.from(container.querySelectorAll('*'));
+    const salePosition = allChildren.indexOf(saleContainer);
 
-    // Search through up to 3 next siblings to find an error alert
-    for (let i = 0; i < 3 && currentElement; i++) {
-      console.log(`Checking sibling ${i + 1}:`, currentElement);
+    console.log(`Sale ${index + 1} container position in DOM:`, salePosition);
 
-      // Check if this sibling itself is an error alert or contains one
-      const errorAlert = currentElement.classList && currentElement.classList.contains('ant-alert-error')
-        ? currentElement.querySelector('.ant-alert-message')
-        : currentElement.querySelector('.ant-alert-error .ant-alert-message');
+    // Find the position of the next sale container (if it exists)
+    const nextSaleContainer = saleItems[index + 1] ? saleItems[index + 1].closest('div[style*="width: 100%"]') : null;
+    const nextSalePosition = nextSaleContainer ? allChildren.indexOf(nextSaleContainer) : allChildren.length;
 
-      if (errorAlert) {
-        saleData.errorMessage = errorAlert.textContent.trim();
-        console.log(`Error message found for sale ${index + 1}:`, saleData.errorMessage);
-        foundError = true;
-        break;
+    console.log(`Next sale position (or end):`, nextSalePosition);
+
+    // Look for error alerts between this sale and the next sale
+    for (const errorAlert of allErrorAlerts) {
+      const errorPosition = allChildren.indexOf(errorAlert);
+      console.log(`Error alert position:`, errorPosition);
+
+      // If the error appears after this sale but before the next sale, it belongs to this sale
+      if (errorPosition > salePosition && errorPosition < nextSalePosition) {
+        const errorMessage = errorAlert.querySelector('.ant-alert-message');
+        if (errorMessage) {
+          saleData.errorMessage = errorMessage.textContent.trim();
+          console.log(`Error message found for sale ${index + 1} (position ${errorPosition}):`, saleData.errorMessage);
+          break;
+        }
       }
-
-      // Move to next sibling
-      currentElement = currentElement.nextElementSibling;
     }
 
-    if (!foundError) {
+    if (!saleData.errorMessage) {
       console.log(`No error alert found for sale ${index + 1}`);
     }
 
