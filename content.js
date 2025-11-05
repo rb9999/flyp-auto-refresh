@@ -6,54 +6,9 @@ let nextRefreshTime = null; // Track when the next refresh will happen
 let webhookUrl = ''; // Discord webhook URL
 let notificationObserver = null; // MutationObserver for notifications
 let processedNotifications = new Set(); // Track processed notifications to avoid duplicates
-let killSwitchActive = false; // Track if extension has been remotely disabled
-let killSwitchCheckInterval = null; // Interval for checking kill switch
-
-// Function to check kill switch status
-async function checkKillSwitch() {
-  try {
-    const response = await fetch('https://raw.githubusercontent.com/rb9999/flyp-auto-refresh/main/status.json', {
-      cache: 'no-store' // Always get fresh data
-    });
-
-    if (!response.ok) {
-      console.log('Flyp Auto Refresh: Could not check kill switch status');
-      return;
-    }
-
-    const status = await response.json();
-
-    if (status.active === false) {
-      console.log('Flyp Auto Refresh: Extension has been remotely disabled');
-      killSwitchActive = true;
-      stopAutoRefresh();
-
-      if (notificationObserver) {
-        notificationObserver.disconnect();
-        notificationObserver = null;
-      }
-
-      // Show alert to user if there's a message
-      if (status.message) {
-        alert(`Flyp Auto Refresh: ${status.message}`);
-      } else {
-        alert('Flyp Auto Refresh has been temporarily disabled. Please check for updates.');
-      }
-    } else {
-      killSwitchActive = false;
-    }
-  } catch (error) {
-    console.log('Flyp Auto Refresh: Error checking kill switch', error);
-  }
-}
 
 // Function to click the refresh button
 function clickRefreshButton() {
-  if (killSwitchActive) {
-    console.log('Flyp Auto Refresh: Extension is disabled via kill switch');
-    return false;
-  }
-
   let targetButton = null;
   
   // Strategy 1: Look for the Ant Design button with redo icon and "Refresh" text
@@ -100,11 +55,6 @@ function clickRefreshButton() {
 
 // Function to start auto-refresh
 function startAutoRefresh() {
-  if (killSwitchActive) {
-    console.log('Flyp Auto Refresh: Cannot start - extension is disabled via kill switch');
-    return;
-  }
-
   if (autoRefreshInterval) {
     clearInterval(autoRefreshInterval);
   }
@@ -341,82 +291,159 @@ function extractSaleData(notification) {
   return saleData;
 }
 
+// Function to process individual sale items within a notification
+function processSaleItems(container) {
+  console.log('Flyp Auto Refresh: Processing sale items in container');
+
+  // Find all individual sale items (they have ant-typography-ellipsis for item name)
+  const saleItems = container.querySelectorAll('.ant-typography-ellipsis');
+
+  console.log(`Found ${saleItems.length} sale item(s)`);
+
+  saleItems.forEach((itemElement, index) => {
+    console.log(`Processing sale item ${index + 1}`);
+
+    // Get the parent container for this specific sale
+    // The item name is inside a div, we need to go up to find all related info
+    let saleContainer = itemElement.closest('div[style*="width: 100%"]');
+    if (!saleContainer) {
+      console.log('Could not find sale container for item');
+      return;
+    }
+
+    // Extract sale data for this specific item
+    const saleData = {
+      itemName: itemElement.textContent.trim(),
+      price: '',
+      marketplace: '',
+      status: '',
+      imageUrl: '',
+      errorMessage: ''
+    };
+
+    // Extract price from this sale's container
+    const priceElements = saleContainer.querySelectorAll('.ant-typography');
+    for (const el of priceElements) {
+      const text = el.textContent;
+      if (text.includes('Price:')) {
+        const priceMatch = text.match(/\$[\d,]+\.?\d*/);
+        if (priceMatch) {
+          // Format price to always have 2 decimal places
+          const priceValue = parseFloat(priceMatch[0].replace(/[$,]/g, ''));
+          saleData.price = `$${priceValue.toFixed(2)}`;
+          break;
+        }
+      }
+    }
+
+    // Extract marketplace
+    const marketplaceImg = saleContainer.querySelector('img[alt*="icon"]');
+    if (marketplaceImg) {
+      const alt = marketplaceImg.alt.toLowerCase();
+      if (alt.includes('ebay')) saleData.marketplace = 'eBay';
+      else if (alt.includes('mercari')) saleData.marketplace = 'Mercari';
+      else if (alt.includes('poshmark')) saleData.marketplace = 'Poshmark';
+      else if (alt.includes('facebook')) saleData.marketplace = 'Facebook Marketplace';
+      else if (alt.includes('depop')) saleData.marketplace = 'Depop';
+    }
+
+    // Extract status
+    const statusTag = saleContainer.querySelector('.ant-tag-success');
+    if (statusTag) {
+      saleData.status = statusTag.textContent.trim();
+    }
+
+    // Extract error message if present
+    const errorAlert = saleContainer.querySelector('.ant-alert-error .ant-alert-message');
+    if (errorAlert) {
+      saleData.errorMessage = errorAlert.textContent.trim();
+      console.log('Error message found:', saleData.errorMessage);
+    }
+
+    // Get the image - look in the sale container first, then fall back to parent
+    let itemImg = saleContainer.querySelector('.ant-image img');
+    if (!itemImg) {
+      // If not found in sale container, try the parent but get all images
+      const allImages = container.querySelectorAll('.ant-image img');
+      if (allImages.length > index && allImages[index]) {
+        itemImg = allImages[index];
+      }
+    }
+    if (itemImg) {
+      saleData.imageUrl = itemImg.src;
+    }
+
+    console.log('Extracted sale data:', saleData);
+
+    // Create unique ID
+    const timestamp = Math.floor(Date.now() / 10000);
+    const notifId = `${saleData.itemName}_${saleData.price}_${timestamp}`;
+
+    if (!processedNotifications.has(notifId)) {
+      processedNotifications.add(notifId);
+
+      // Clean up old processed notifications (keep last 50)
+      if (processedNotifications.size > 50) {
+        const firstItem = processedNotifications.values().next().value;
+        processedNotifications.delete(firstItem);
+      }
+
+      // Send to Discord if webhook is configured
+      if (webhookUrl && (saleData.itemName || saleData.price)) {
+        console.log('Flyp Auto Refresh: Sending sale notification to Discord');
+        sendDiscordNotification(saleData);
+      }
+    } else {
+      console.log('Flyp Auto Refresh: Duplicate notification ignored', notifId);
+    }
+  });
+}
+
 // Function to monitor for sale notifications
 function startNotificationMonitoring() {
-  if (killSwitchActive) {
-    console.log('Flyp Auto Refresh: Cannot start monitoring - extension is disabled via kill switch');
-    return;
-  }
-
   // Stop existing observer if any
   if (notificationObserver) {
     notificationObserver.disconnect();
   }
 
   console.log('Flyp Auto Refresh: Starting notification monitoring for sale popups');
-  
-  // Create a MutationObserver to watch for new notifications
+
+  // Create a MutationObserver to watch for new notifications AND changes within them
   notificationObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === 1) { // Element node
           // Check if this is the Flyp sale notification container
           let notifications = [];
-          
+
           // Look for the specific Flyp notification class
           if (node.classList && node.classList.contains('new-sales-floating-container__inner')) {
             notifications.push(node);
           }
-          
+
           // Also check children for the notification container
           if (node.querySelectorAll) {
             const foundNotifications = node.querySelectorAll('.new-sales-floating-container__inner');
             notifications.push(...Array.from(foundNotifications));
           }
-          
-          // Process each notification
+
+          // Process each notification - check for all sale items inside
           notifications.forEach((notification) => {
             console.log('Flyp Auto Refresh: New sale notification detected!', notification);
-
-            // Extract sale data immediately
-            const saleData = extractSaleData(notification);
-
-            console.log('Flyp Auto Refresh: Extracted sale data:', saleData);
-
-            // Create a unique ID using item name + price + timestamp (rounded to nearest 10 seconds)
-            // This prevents true duplicates but allows same item to sell multiple times
-            const timestamp = Math.floor(Date.now() / 10000); // Round to 10-second intervals
-            const notifId = `${saleData.itemName}_${saleData.price}_${timestamp}`;
-
-            if (!processedNotifications.has(notifId)) {
-              processedNotifications.add(notifId);
-
-              // Clean up old processed notifications (keep last 50)
-              if (processedNotifications.size > 50) {
-                const firstItem = processedNotifications.values().next().value;
-                processedNotifications.delete(firstItem);
-              }
-
-              // Send to Discord if webhook is configured
-              if (webhookUrl && (saleData.itemName || saleData.price)) {
-                console.log('Flyp Auto Refresh: Sending sale notification to Discord');
-                sendDiscordNotification(saleData);
-              }
-            } else {
-              console.log('Flyp Auto Refresh: Duplicate notification ignored', notifId);
-            }
+            processSaleItems(notification);
           });
         }
       });
     });
   });
-  
+
   // Start observing the document body for notification popups
+  // IMPORTANT: We observe subtree deeply to catch changes inside the notification
   notificationObserver.observe(document.body, {
     childList: true,
     subtree: true
   });
-  
+
   console.log('Flyp Auto Refresh: Notification monitoring active - watching for .new-sales-floating-container__inner');
 }
 
@@ -462,18 +489,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Load settings from storage and start
-chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], async (result) => {
+chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) => {
   isEnabled = result.enabled !== false; // Default to true
   refreshIntervalMinutes = result.intervalMinutes || 30;
   webhookUrl = result.webhookUrl || '';
-
-  // Check kill switch first
-  await checkKillSwitch();
-
-  if (killSwitchActive) {
-    console.log('Flyp Auto Refresh: Extension is disabled via kill switch');
-    return;
-  }
 
   if (isEnabled) {
     startAutoRefresh();
@@ -483,15 +502,9 @@ chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], async (res
   if (webhookUrl) {
     startNotificationMonitoring();
   }
-
-  // Check kill switch every hour
-  killSwitchCheckInterval = setInterval(checkKillSwitch, 60 * 60 * 1000); // 1 hour
 });
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   stopAutoRefresh();
-  if (killSwitchCheckInterval) {
-    clearInterval(killSwitchCheckInterval);
-  }
 });
