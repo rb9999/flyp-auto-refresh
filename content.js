@@ -353,11 +353,36 @@ function processSaleItems(container) {
       saleData.status = statusTag.textContent.trim();
     }
 
-    // Extract error message if present
-    const errorAlert = saleContainer.querySelector('.ant-alert-error .ant-alert-message');
-    if (errorAlert) {
-      saleData.errorMessage = errorAlert.textContent.trim();
-      console.log('Error message found:', saleData.errorMessage);
+    // Extract error message if present - look for error alert that follows this sale item
+    // The error appears as a sibling element between sale items, not inside the sale container
+    console.log(`Looking for error alert after sale item ${index + 1}...`);
+
+    // Start from the sale container and look for the next error alert element
+    let currentElement = saleContainer.nextElementSibling;
+    let foundError = false;
+
+    // Search through up to 3 next siblings to find an error alert
+    for (let i = 0; i < 3 && currentElement; i++) {
+      console.log(`Checking sibling ${i + 1}:`, currentElement);
+
+      // Check if this sibling itself is an error alert or contains one
+      const errorAlert = currentElement.classList && currentElement.classList.contains('ant-alert-error')
+        ? currentElement.querySelector('.ant-alert-message')
+        : currentElement.querySelector('.ant-alert-error .ant-alert-message');
+
+      if (errorAlert) {
+        saleData.errorMessage = errorAlert.textContent.trim();
+        console.log(`Error message found for sale ${index + 1}:`, saleData.errorMessage);
+        foundError = true;
+        break;
+      }
+
+      // Move to next sibling
+      currentElement = currentElement.nextElementSibling;
+    }
+
+    if (!foundError) {
+      console.log(`No error alert found for sale ${index + 1}`);
     }
 
     // Get the image - look in the sale container first, then fall back to parent
