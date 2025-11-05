@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flyp Orders Auto Refresh",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Automatically refreshes the Flyp orders page every 30 minutes",
   "permissions": [
     "activeTab",

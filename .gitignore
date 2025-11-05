@@ -30,3 +30,16 @@ node_modules/
 # Temporary files
 tmp/
 temp/
+
+# Debug files
+debug-*.js
+*-debug.js
+
+# Screenshots and images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+!icon*.png
