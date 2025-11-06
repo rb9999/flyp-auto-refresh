@@ -1,43 +1,28 @@
-# Chrome Extension
-*.pem
-*.crx
-*.zip
+# Claude Code configuration (local only)
+.claude/
 
-# OS Files
+# Test files
+test-*.js
+
+# Node modules (if ever needed)
+node_modules/
+
+# OS files
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Editor/IDE
+# Editor files
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
 # Logs
 *.log
 
-# Node modules (if you add build tools later)
-node_modules/
-
-# Environment variables
-.env
-.env.local
-
 # Temporary files
-tmp/
-temp/
+*.tmp
+*.temp
 
-# Debug files
-debug-*.js
-*-debug.js
-
-# Screenshots and images
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.webp
-!icon*.png
+# Package files (if creating distribution)
+*.zip
+dist/
+build/

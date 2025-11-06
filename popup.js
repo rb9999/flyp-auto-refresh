@@ -117,6 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const flypTabs = tabs.filter(tab => tab.url && tab.url.includes('tools.joinflyp.com/orders'));
 
         if (flypTabs.length > 0) {
+          let responsesReceived = 0;
+          const totalTabs = flypTabs.length;
+
           flypTabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               action: 'updateSettings',
@@ -124,6 +127,18 @@ document.addEventListener('DOMContentLoaded', () => {
               intervalMinutes: intervalMinutes,
               webhookUrl: webhookUrl
             }, (response) => {
+              responsesReceived++;
+
+              // Once all tabs have responded, update the countdown
+              if (responsesReceived === totalTabs) {
+                if (countdownInterval) {
+                  clearInterval(countdownInterval);
+                  countdownInterval = null;
+                }
+                // Wait a bit for storage to be updated by content script
+                setTimeout(updateCountdown, 200);
+              }
+
               if (chrome.runtime.lastError) {
                 // Ignore errors for background tabs
               }
@@ -132,14 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
           showStatus('Settings saved successfully!', true);
         } else {
           showStatus('Settings saved! Open the Flyp orders page to activate.');
+          // No Flyp tabs open, just hide countdown
+          if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+          }
+          countdownDiv.style.display = 'none';
         }
-
-        // Always update countdown display (works from any tab now)
-        if (countdownInterval) {
-          clearInterval(countdownInterval);
-          countdownInterval = null;
-        }
-        setTimeout(updateCountdown, 100);
       });
     });
   });
@@ -181,6 +195,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const coffeeBtn = document.getElementById('coffeeBtn');
   coffeeBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://buymeacoffee.com/rb9999' });
+  });
+
+  // About button and modal
+  const aboutBtn = document.getElementById('aboutBtn');
+  const aboutModal = document.getElementById('aboutModal');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+
+  aboutBtn.addEventListener('click', () => {
+    aboutModal.style.display = 'block';
+  });
+
+  closeModalBtn.addEventListener('click', () => {
+    aboutModal.style.display = 'none';
+  });
+
+  // Close modal when clicking outside of it
+  aboutModal.addEventListener('click', (event) => {
+    if (event.target === aboutModal) {
+      aboutModal.style.display = 'none';
+    }
+  });
+
+  // Handle link clicks in modal
+  aboutModal.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      chrome.tabs.create({ url: event.target.href });
+    });
   });
 
   // Check for updates function

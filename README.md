@@ -1,8 +1,10 @@
 # Flyp Orders Auto Refresh Chrome Extension
 
-**Version 2.0** - Production Ready Release
+**Version 1.0** - Public Release
 
 A secure, memory-efficient Chrome extension that automatically refreshes the Flyp Reseller Tools orders page and sends Discord notifications when you make sales.
+
+NOTE: This plugin is in no way affiliated or endorsed by FLYP. It was initially written by me for me. It works at the time of release but due to changes Flyp may make to their app, things may discontinue working. I will continue to work on this and update the app. It has built in checking for updated versions.
 
 ---
 
@@ -28,6 +30,7 @@ A secure, memory-efficient Chrome extension that automatically refreshes the Fly
 - 🚫 **Duplicate Prevention** - Smart tracking prevents duplicate notifications
 - 💾 **Persistent Settings** - Your preferences sync across Chrome instances
 - 🔐 **Security Hardened** - Content Security Policy, URL validation, webhook verification
+- 💡 **Update Checker** - Automatically checks for new versions
 
 ---
 
@@ -42,7 +45,7 @@ A secure, memory-efficient Chrome extension that automatically refreshes the Fly
 
 1. Click the **"Load unpacked"** button
 2. Navigate to and select the `flyp-auto-refresh` folder
-3. The extension should now appear in your extensions list with version **2.0**
+3. The extension should now appear in your extensions list with version **1.0**
 
 ### Step 3: Pin the Extension (Recommended)
 
@@ -69,6 +72,7 @@ Click the extension icon to access:
 - **Discord Webhook URL** - Optional: Get sale notifications in Discord
 - **Save Settings** - Apply changes immediately
 - **Refresh Now** - Manually trigger a refresh
+- **About (...)** - View extension information and links
 
 ---
 
@@ -110,7 +114,7 @@ When a sale occurs on Flyp, you'll get a Discord message containing:
 
 ## 🔒 Security & Privacy
 
-### Security Features (New in v2.0)
+### Security Features
 
 - ✅ **Webhook URL Validation** - Prevents data exfiltration by validating Discord URLs
 - ✅ **Content Sanitization** - All sale data is sanitized before sending to Discord
@@ -125,7 +129,7 @@ This extension:
 - ✅ Does not collect or store personal data
 - ✅ Only sends data to Discord if you configure a webhook URL
 - ✅ Stores preferences locally in Chrome sync storage
-- ✅ Does not communicate with any third-party servers (except optional Discord)
+- ✅ Does not communicate with any third-party servers (except optional Discord and GitHub for updates)
 - ✅ Open source - you can review all code
 
 ### Permissions Explained
@@ -144,9 +148,9 @@ This extension:
 - **Manifest V3** - Latest Chrome extension platform
 - **Background Service Worker** - Lightweight initialization
 - **Content Script** - Main logic injected into Flyp orders page
-- **Popup UI** - Settings interface
+- **Popup UI** - Settings interface with about modal
 
-### Performance Optimizations (v2.0)
+### Performance Optimizations
 
 - **Memory Leak Prevention** - All timeouts and intervals properly tracked and cleaned
 - **LRU Cache** - Notification tracking limited to 50 most recent entries
@@ -192,57 +196,50 @@ The extension uses a multi-layered approach to find the refresh button:
 2. ✅ Check `chrome://extensions/` shows no errors
 3. ✅ Try disabling and re-enabling the extension
 
-### High Memory Usage?
+### Countdown Timer Not Resetting?
 
-- v2.0 includes memory leak fixes
-- If issues persist, try reloading the extension in `chrome://extensions/`
-- Report persistent memory issues with Chrome Task Manager screenshot
+1. ✅ Ensure you have a Flyp orders tab open when changing settings
+2. ✅ Wait a moment after clicking Save for the countdown to update
+3. ✅ Reload the extension if the issue persists
 
 ---
 
 ## 📋 Version History
 
-### v2.0 (November 2024) - Production Release
+### v1.0 (January 2025) - Public Release
 
-**Security Improvements:**
-- Added webhook URL validation to prevent data exfiltration
-- Implemented content sanitization for Discord embeds
-- Added Content Security Policy (CSP) protection
-- Proper URL validation to prevent subdomain attacks
-- Removed sensitive data from console logs
+**Core Features:**
+- Automatic page refresh with configurable intervals (10-1440 minutes)
+- Visual countdown timer
+- Manual refresh button
+- Toggle to enable/disable auto-refresh
 
-**Stability Improvements:**
-- Fixed MutationObserver memory leaks
-- Fixed unbounded Set growth issue
-- Fixed interval leaks (all timeouts/intervals properly cleaned)
-- Added error handling for Chrome storage failures
-- Fixed settings update race conditions
+**Discord Integration:**
+- Real-time sale notifications with rich embeds
+- Detailed sale information (name, price, marketplace, status, image)
+- Error message reporting for delisting issues
+- "Not on Orders Page" warnings
+- Duplicate notification prevention
 
-**Performance:**
-- Reduced notification cache from 100 to 50 entries (LRU)
-- Implemented proper cleanup on page unload
-- Added 5-second timeout for GitHub API update checks
-- Better error handling for network failures
+**Security & Privacy:**
+- Webhook URL validation to prevent data exfiltration
+- Content sanitization for Discord embeds
+- Content Security Policy (CSP) protection
+- Proper URL validation to prevent attacks
+- No sensitive data logging
 
-**Other:**
-- Added state locking to prevent concurrent updates
-- Improved backup polling strategy
-- Enhanced debugging output
+**Performance & Stability:**
+- Memory leak prevention (proper cleanup of timeouts/intervals)
+- LRU cache for notification tracking (50 entries max)
+- MutationObserver with backup polling strategy
+- ReactVirtualized support for dynamic content
+- Error handling for Chrome storage failures
+- Settings update race condition prevention
 
-### v1.2 (Beta)
-- Added "Not on Orders Page" Discord notifications
-- Improved real-time sale detection with backup polling
-- Fixed duplicate notification issues
-
-### v1.1 (Beta)
-- Added Discord webhook notifications
-- Real-time sale detection with MutationObserver
-- ReactVirtualized content support
-
-### v1.0 (Beta)
-- Initial release
-- Basic auto-refresh functionality
-- Configurable intervals
+**User Interface:**
+- About modal with project information and links
+- Update checker for new versions
+- Buy Me a Coffee support button
 
 ---
 
@@ -281,19 +278,23 @@ This extension is provided as-is for personal use.
 - 💡 Use Discord notifications to avoid keeping the tab visible
 - 💡 Test your Discord webhook by navigating away from the orders page and clicking refresh
 - 💡 The extension survives page refreshes and maintains settings
+- 💡 Click the three-dot button (...) for about information and links
 
 ---
 
 ## 🔗 Links
 
+- **GitHub:** https://github.com/rb9999/flyp-auto-refresh
+- **Discord (Message):** https://discord.com/users/599181983045910529
+- **Discord (Discuss):** https://discord.gg/Cf9NqPX3CZ
 - **Installation Page:** `chrome://extensions/`
 - **Flyp Orders:** `https://tools.joinflyp.com/orders`
 - **Discord Webhooks Guide:** [Discord Developer Docs](https://discord.com/developers/docs/resources/webhook)
 
 ---
 
-**Version:** 2.0
-**Release Date:** November 2024
-**Status:** Production Ready
+**Version:** 1.0
+**Release Date:** January 2025
+**Status:** Public Release
 
 Made with ❤️ for Flyp resellers

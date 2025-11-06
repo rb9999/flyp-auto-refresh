@@ -155,10 +155,16 @@ function startAutoRefresh() {
     nextRefreshTime = Date.now() + (refreshIntervalMinutes * 60 * 1000);
 
     // Store countdown state in chrome.storage so it's accessible from any tab
-    chrome.storage.local.set({
-      nextRefreshTime: nextRefreshTime,
-      isEnabled: isEnabled,
-      intervalMinutes: refreshIntervalMinutes
+    // Return a promise so caller can wait for storage to be updated
+    const storagePromise = new Promise((resolve) => {
+      chrome.storage.local.set({
+        nextRefreshTime: nextRefreshTime,
+        isEnabled: isEnabled,
+        intervalMinutes: refreshIntervalMinutes
+      }, () => {
+        console.log('Flyp Auto Refresh: Storage updated successfully');
+        resolve();
+      });
     });
 
     autoRefreshInterval = setInterval(() => {
@@ -168,7 +174,10 @@ function startAutoRefresh() {
       // Update storage
       chrome.storage.local.set({ nextRefreshTime: nextRefreshTime });
     }, refreshIntervalMinutes * 60 * 1000); // Convert minutes to milliseconds
+
+    return storagePromise;
   }
+  return Promise.resolve();
 }
 
 // Function to stop auto-refresh
@@ -795,33 +804,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     isUpdatingSettings = true;
 
-    try {
-      const oldWebhookUrl = webhookUrl;
-      const wasEnabled = isEnabled;
+    // Handle async storage update
+    (async () => {
+      try {
+        const oldWebhookUrl = webhookUrl;
+        const wasEnabled = isEnabled;
 
-      refreshIntervalMinutes = request.intervalMinutes || 30;
-      isEnabled = request.enabled !== false;
-      webhookUrl = request.webhookUrl || '';
+        refreshIntervalMinutes = request.intervalMinutes || 30;
+        isEnabled = request.enabled !== false;
+        webhookUrl = request.webhookUrl || '';
 
-      // Always stop the current auto-refresh
-      stopAutoRefresh();
+        // Always stop the current auto-refresh
+        stopAutoRefresh();
 
-      // Restart auto-refresh with new settings if enabled
-      // This ensures countdown timer resets when interval changes
-      if (isEnabled) {
-        startAutoRefresh();
+        // Restart auto-refresh with new settings if enabled
+        // This ensures countdown timer resets when interval changes
+        if (isEnabled) {
+          // Wait for startAutoRefresh to complete storage update
+          await startAutoRefresh();
+        }
+
+        // Start notification monitoring if webhook is configured and changed
+        if (webhookUrl && webhookUrl !== oldWebhookUrl) {
+          startNotificationMonitoring();
+        }
+
+        sendResponse({ success: true });
+      } finally {
+        // CRITICAL FIX #2: Always release the lock
+        isUpdatingSettings = false;
       }
+    })();
 
-      // Start notification monitoring if webhook is configured and changed
-      if (webhookUrl && webhookUrl !== oldWebhookUrl) {
-        startNotificationMonitoring();
-      }
-
-      sendResponse({ success: true });
-    } finally {
-      // CRITICAL FIX #2: Always release the lock
-      isUpdatingSettings = false;
-    }
+    return true; // Keep channel open for async response
   } else if (request.action === 'manualRefresh') {
     const clicked = clickRefreshButton();
     // Reset the countdown timer after manual refresh
