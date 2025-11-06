@@ -150,14 +150,23 @@ function startAutoRefresh() {
 
   if (isEnabled) {
     console.log(`Flyp Auto Refresh: Starting auto-refresh every ${refreshIntervalMinutes} minutes`);
-    
+
     // Set the next refresh time
     nextRefreshTime = Date.now() + (refreshIntervalMinutes * 60 * 1000);
-    
+
+    // Store countdown state in chrome.storage so it's accessible from any tab
+    chrome.storage.local.set({
+      nextRefreshTime: nextRefreshTime,
+      isEnabled: isEnabled,
+      intervalMinutes: refreshIntervalMinutes
+    });
+
     autoRefreshInterval = setInterval(() => {
       clickRefreshButton();
       // Reset next refresh time after clicking
       nextRefreshTime = Date.now() + (refreshIntervalMinutes * 60 * 1000);
+      // Update storage
+      chrome.storage.local.set({ nextRefreshTime: nextRefreshTime });
     }, refreshIntervalMinutes * 60 * 1000); // Convert minutes to milliseconds
   }
 }
@@ -171,6 +180,9 @@ function stopAutoRefresh() {
   }
   // CRITICAL FIX #2: Always clear nextRefreshTime to prevent race conditions
   nextRefreshTime = null;
+
+  // Clear countdown state from storage
+  chrome.storage.local.remove('nextRefreshTime');
 }
 
 // Function to send Discord webhook notification
@@ -806,6 +818,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Reset the countdown timer after manual refresh
     if (clicked && isEnabled) {
       nextRefreshTime = Date.now() + (refreshIntervalMinutes * 60 * 1000);
+      // Update storage so countdown is visible on any tab
+      chrome.storage.local.set({ nextRefreshTime: nextRefreshTime });
     }
     sendResponse({ success: clicked });
   } else if (request.action === 'getStatus') {

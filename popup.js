@@ -39,44 +39,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (countdownInterval) {
       clearInterval(countdownInterval);
     }
-    
-    // Check if we're on the Flyp page
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0] || !tabs[0].url || !tabs[0].url.includes('tools.joinflyp.com')) {
+
+    // Get countdown info from chrome.storage (accessible from any tab)
+    chrome.storage.local.get(['nextRefreshTime', 'isEnabled', 'intervalMinutes'], (result) => {
+      if (chrome.runtime.lastError || !result.isEnabled || !result.nextRefreshTime) {
         countdownDiv.style.display = 'none';
         return;
       }
-      
-      // Get countdown info from content script
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'getCountdown'
-      }, (response) => {
-        if (chrome.runtime.lastError || !response) {
-          countdownDiv.style.display = 'none';
-          return;
+
+      countdownDiv.style.display = 'block';
+
+      // Store initial nextRefreshTime
+      let currentNextRefreshTime = result.nextRefreshTime;
+
+      // Update countdown every second
+      countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const timeLeft = Math.max(0, Math.floor((currentNextRefreshTime - now) / 1000));
+
+        if (timeLeft <= 0) {
+          countdownTimer.textContent = 'Refreshing...';
+          // Refresh the countdown info after 2 seconds
+          setTimeout(() => {
+            // Re-read from storage to get updated time
+            chrome.storage.local.get(['nextRefreshTime'], (newResult) => {
+              if (newResult.nextRefreshTime) {
+                currentNextRefreshTime = newResult.nextRefreshTime;
+              }
+            });
+          }, 2000);
+        } else {
+          countdownTimer.textContent = formatTime(timeLeft);
         }
-        
-        if (!response.enabled || !response.nextRefreshTime) {
-          countdownDiv.style.display = 'none';
-          return;
-        }
-        
-        countdownDiv.style.display = 'block';
-        
-        // Update countdown every second
-        countdownInterval = setInterval(() => {
-          const now = Date.now();
-          const timeLeft = Math.max(0, Math.floor((response.nextRefreshTime - now) / 1000));
-          
-          if (timeLeft <= 0) {
-            countdownTimer.textContent = 'Refreshing...';
-            // Refresh the countdown info
-            setTimeout(updateCountdown, 2000);
-          } else {
-            countdownTimer.textContent = formatTime(timeLeft);
-          }
-        }, 1000);
-      });
+      }, 1000);
     });
   }
   
