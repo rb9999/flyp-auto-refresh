@@ -34,6 +34,32 @@ NOTE: This plugin is in no way affiliated or endorsed by FLYP. It was initially 
 
 ---
 
+## 📥 Download Instructions
+
+Follow these simple steps to download the latest version of the app:
+
+1. **Go to the project page**  
+   👉 [https://github.com/rb9999/flyp-auto-refresh](https://github.com/rb9999/flyp-auto-refresh)
+
+2. **Click on the “Releases” tab**  
+   - You’ll find it near the top of the page, just below the repo name.  
+   - Or go directly to:  
+     👉 [https://github.com/rb9999/flyp-auto-refresh/releases](https://github.com/rb9999/flyp-auto-refresh/releases)
+
+3. **Find the latest release**  
+   - It’s usually the first one listed (e.g., `v1.0` or the one with the 'latest' tag).
+   - Click the release title to open it.
+
+4. **Download the ZIP file**  
+   - Under the “Assets” section, click the `.zip` file (e.g., `flyp-auto-refresh-v1.0.zip`)
+   - Your download will start automatically.
+
+5. **Unzip the file**  
+   - Once downloaded, open the ZIP file and extract its contents to a folder on your computer.  If you keep this folder and install updates into it, you can simply refresh the plugin from the chrome plugins window.
+
+You're now ready to use the app! 🚀
+
+
 ## 🚀 Installation Instructions
 
 ### Step 1: Enable Developer Mode in Chrome
