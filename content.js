@@ -411,15 +411,15 @@ function processSaleItems(container) {
 
     console.log('Extracted sale data:', saleData);
 
-    // Create unique ID
-    const timestamp = Math.floor(Date.now() / 10000);
-    const notifId = `${saleData.itemName}_${saleData.price}_${timestamp}`;
+    // Create unique ID based ONLY on item name and price (not timestamp)
+    // This ensures we only send notification once per item, even if processed multiple times
+    const notifId = `${saleData.itemName}_${saleData.price}`;
 
     if (!processedNotifications.has(notifId)) {
       processedNotifications.add(notifId);
 
-      // Clean up old processed notifications (keep last 50)
-      if (processedNotifications.size > 50) {
+      // Clean up old processed notifications (keep last 100)
+      if (processedNotifications.size > 100) {
         const firstItem = processedNotifications.values().next().value;
         processedNotifications.delete(firstItem);
       }
@@ -460,7 +460,8 @@ function startNotificationMonitoring() {
 
       mutation.addedNodes.forEach((node, nodeIndex) => {
         if (node.nodeType === 1) { // Element node
-          console.log(`🔍 [DEBUG] Node ${nodeIndex + 1}: ${node.tagName}${node.className ? '.' + node.className.split(' ').join('.') : ''}`);
+          const classNames = node.className && typeof node.className === 'string' ? '.' + node.className.split(' ').join('.') : '';
+          console.log(`🔍 [DEBUG] Node ${nodeIndex + 1}: ${node.tagName}${classNames}`);
 
           // Check if this is the Flyp sale notification container
           let notifications = [];
@@ -543,10 +544,53 @@ function startNotificationMonitoring() {
   // IMPORTANT: We observe subtree deeply to catch changes inside the notification
   notificationObserver.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true,  // Watch for attribute changes
+    characterData: true  // Watch for text content changes
   });
 
   console.log('Flyp Auto Refresh: Notification monitoring active - watching for .new-sales-floating-container__inner');
+
+  // BACKUP STRATEGY: Poll for sales count changes every 5 seconds
+  // This catches sales that don't trigger DOM mutations
+  let lastKnownSaleCount = 0;
+  setInterval(() => {
+    const container = document.querySelector('.new-sales-floating-container__inner');
+    if (container) {
+      const currentSaleCount = container.querySelectorAll('.ant-typography-ellipsis').length;
+      if (currentSaleCount > lastKnownSaleCount && lastKnownSaleCount > 0) {
+        console.log(`🔍 [DEBUG] 🔔 POLLING DETECTED CHANGE: Sale count changed from ${lastKnownSaleCount} to ${currentSaleCount}`);
+        console.log('Flyp Auto Refresh: Polling detected new sale(s) - processing container');
+
+        // Process the container with ReactVirtualized delays
+        const hasVirtualized = container.querySelector('.ReactVirtualized__Grid, .ReactVirtualized__List');
+        if (hasVirtualized) {
+          console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
+          console.log('🔍 [DEBUG] Scheduling 3 processing attempts: 200ms, 500ms, 1000ms');
+          setTimeout(() => {
+            console.log('🔍 [DEBUG] ⏰ Processing at 200ms delay (from polling)');
+            processSaleItems(container);
+          }, 200);
+          setTimeout(() => {
+            console.log('🔍 [DEBUG] ⏰ Processing at 500ms delay (from polling)');
+            processSaleItems(container);
+          }, 500);
+          setTimeout(() => {
+            console.log('🔍 [DEBUG] ⏰ Processing at 1000ms delay (from polling)');
+            processSaleItems(container);
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            console.log('🔍 [DEBUG] ⏰ Processing at 100ms delay (from polling)');
+            processSaleItems(container);
+          }, 100);
+        }
+      }
+      lastKnownSaleCount = currentSaleCount;
+    }
+  }, 5000);  // Check every 5 seconds
+
+  console.log('🔍 [DEBUG] Backup polling strategy enabled - checking sale count every 5 seconds');
 }
 
 // Listen for messages from popup or background
