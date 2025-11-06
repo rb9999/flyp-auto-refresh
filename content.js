@@ -6,11 +6,33 @@ let nextRefreshTime = null; // Track when the next refresh will happen
 let webhookUrl = ''; // Discord webhook URL
 let notificationObserver = null; // MutationObserver for notifications
 let processedNotifications = new Set(); // Track processed notifications to avoid duplicates
+let notOnOrdersPageNotificationSent = false; // Track if we've sent the "not on orders page" notification
 
 // Function to click the refresh button
 function clickRefreshButton() {
+  // Check if we're on the orders page
+  const currentUrl = window.location.href;
+  const isOnOrdersPage = currentUrl.includes('tools.joinflyp.com/orders');
+
+  if (!isOnOrdersPage) {
+    console.log('Flyp Auto Refresh: Not on orders page, skipping refresh');
+
+    // Send Discord notification if we haven't already sent one for this occurrence
+    if (webhookUrl && !notOnOrdersPageNotificationSent) {
+      sendNotOnOrdersPageNotification();
+      notOnOrdersPageNotificationSent = true;
+    }
+    return false;
+  }
+
+  // Reset the notification flag when we're back on the orders page
+  if (notOnOrdersPageNotificationSent) {
+    console.log('Flyp Auto Refresh: Back on orders page, resetting notification flag');
+    notOnOrdersPageNotificationSent = false;
+  }
+
   let targetButton = null;
-  
+
   // Strategy 1: Look for the Ant Design button with redo icon and "Refresh" text
   const buttons = Array.from(document.querySelectorAll('button.ant-btn, button'));
   targetButton = buttons.find(btn => {
@@ -18,25 +40,25 @@ function clickRefreshButton() {
     const hasRefreshText = btn.textContent.trim().toLowerCase() === 'refresh';
     return hasRedoIcon && hasRefreshText;
   });
-  
+
   // Strategy 2: Look for any button with "Refresh" text (case insensitive)
   if (!targetButton) {
     targetButton = buttons.find(btn => {
       return btn.textContent.trim().toLowerCase() === 'refresh';
     });
   }
-  
+
   // Strategy 3: Look for button containing "Refresh" anywhere in text
   if (!targetButton) {
     targetButton = buttons.find(btn => {
       return btn.textContent.trim().toLowerCase().includes('refresh');
     });
   }
-  
+
   if (targetButton) {
     console.log('Flyp Auto Refresh: Clicking refresh button', targetButton);
     targetButton.click();
-    
+
     // Send notification that refresh happened
     chrome.runtime.sendMessage({
       action: 'refreshClicked',
@@ -172,6 +194,63 @@ async function sendDiscordNotification(saleData) {
     }
   } catch (error) {
     console.error('Flyp Auto Refresh: Error sending Discord notification', error);
+  }
+}
+
+// Function to send "Not on Orders Page" notification to Discord
+async function sendNotOnOrdersPageNotification() {
+  if (!webhookUrl) {
+    console.log('Flyp Auto Refresh: No webhook URL configured');
+    return;
+  }
+
+  try {
+    const currentUrl = window.location.href;
+    const embed = {
+      title: "⚠️ Not on Orders Page",
+      description: "The extension tried to refresh but you are not on the orders page.",
+      color: 15158332, // Red color for alert
+      fields: [
+        {
+          name: "📍 Current Page",
+          value: currentUrl,
+          inline: false
+        },
+        {
+          name: "🕐 Time",
+          value: new Date().toLocaleString(),
+          inline: false
+        }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: "Flyp Auto Refresh Bot - Page Alert"
+      }
+    };
+
+    const payload = {
+      content: "⚠️ **NOT ON ORDERS PAGE** ⚠️",
+      embeds: [embed]
+    };
+
+    console.log('Flyp Auto Refresh: Sending "Not on Orders Page" notification');
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      console.log('Flyp Auto Refresh: "Not on Orders Page" notification sent successfully');
+    } else {
+      const errorText = await response.text();
+      console.error('Flyp Auto Refresh: Failed to send "Not on Orders Page" notification', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('Flyp Auto Refresh: Error sending "Not on Orders Page" notification', error);
   }
 }
 
