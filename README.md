@@ -1,6 +1,11 @@
 # Flyp Orders Auto Refresh Chrome Extension
 
 This Chrome extension automatically clicks the "Refresh" button on the Flyp Reseller Tools orders page at a configurable interval.
+It will also notify you via Discord of any sales.  You must be on the Orders page for it to work. If you are not, it will send
+a Discord Notification alerting you.
+
+This plugin is not affiliated with Flyp in any way. It was written by me for my personal use and I thought it may be of use to
+others. At any point, if Flyp changes the way their app works, this could stop working.
 
 ## Features
 
@@ -9,8 +14,10 @@ This Chrome extension automatically clicks the "Refresh" button on the Flyp Rese
 - ✅ Configurable refresh interval (1-1440 minutes)
 - ✅ Manual refresh button for instant updates
 - ✅ Countdown timer showing time until next refresh
-- ✅ **NEW: Discord notifications when you make a sale!**
+- ✅ Discord notifications when you make a sale!**
+- ✅ Discord notification to alert you that you are on the wrong page
 - ✅ Simple, clean interface
+- ✅ Automatically checks for updates
 
 ## Installation Instructions
 
