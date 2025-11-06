@@ -46,11 +46,40 @@ function clearAllTimeouts() {
   pendingTimeouts.clear();
 }
 
+// MEDIUM FIX #7: Sanitize text for Discord embeds to prevent XSS
+function sanitizeForDiscord(text) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+
+  // Discord supports markdown, but we need to escape potential injection vectors
+  // Replace characters that could be used for injection or markdown abuse
+  return text
+    .replace(/[<>]/g, '') // Remove angle brackets (HTML/link injection)
+    .replace(/\\/g, '\\\\') // Escape backslashes
+    .replace(/`/g, '\\`') // Escape backticks (code blocks)
+    .replace(/\[/g, '\\[') // Escape square brackets (links)
+    .replace(/\]/g, '\\]')
+    .replace(/@(everyone|here)/gi, '@\u200B$1') // Prevent mass mentions with zero-width space
+    .trim()
+    .substring(0, 1024); // Discord field value limit
+}
+
 // Function to click the refresh button
 function clickRefreshButton() {
-  // Check if we're on the orders page
-  const currentUrl = window.location.href;
-  const isOnOrdersPage = currentUrl.includes('tools.joinflyp.com/orders');
+  // MEDIUM FIX #10: Proper URL validation using URL API
+  let isOnOrdersPage = false;
+
+  try {
+    const urlObj = new URL(window.location.href);
+    // Must be HTTPS and exact hostname match
+    isOnOrdersPage = urlObj.protocol === 'https:' &&
+                     urlObj.hostname === 'tools.joinflyp.com' &&
+                     urlObj.pathname.startsWith('/orders');
+  } catch (error) {
+    console.error('Flyp Auto Refresh: Invalid URL format:', error);
+    return false;
+  }
 
   if (!isOnOrdersPage) {
     console.log('Flyp Auto Refresh: Not on orders page, skipping refresh');
@@ -167,33 +196,34 @@ async function sendDiscordNotification(saleData) {
         text: "Flyp Auto Refresh Bot"
       }
     };
-    
+
+    // MEDIUM FIX #7: Sanitize all user-controlled content
     // Add item name as description if available
     if (saleData.itemName) {
-      embed.description = `**${saleData.itemName}**`;
+      embed.description = `**${sanitizeForDiscord(saleData.itemName)}**`;
     }
-    
+
     // Add fields for available data
     if (saleData.price) {
       embed.fields.push({
         name: "💰 Price",
-        value: saleData.price,
+        value: sanitizeForDiscord(saleData.price),
         inline: true
       });
     }
-    
+
     if (saleData.marketplace) {
       embed.fields.push({
         name: "🏪 Marketplace",
-        value: saleData.marketplace,
+        value: sanitizeForDiscord(saleData.marketplace),
         inline: true
       });
     }
-    
+
     if (saleData.status) {
       embed.fields.push({
         name: "✅ Status",
-        value: saleData.status,
+        value: sanitizeForDiscord(saleData.status),
         inline: false
       });
     }
@@ -202,7 +232,7 @@ async function sendDiscordNotification(saleData) {
     if (saleData.errorMessage) {
       embed.fields.push({
         name: "⚠️ Error",
-        value: saleData.errorMessage,
+        value: sanitizeForDiscord(saleData.errorMessage),
         inline: false
       });
       // Change embed color to orange/yellow if there's an error
@@ -220,9 +250,10 @@ async function sendDiscordNotification(saleData) {
       content: "💸 **NEW SALE ALERT!** 💸",
       embeds: [embed]
     };
-    
-    console.log('Flyp Auto Refresh: Sending Discord notification:', payload);
-    
+
+    // MEDIUM FIX #8: Don't log sensitive sale data or webhook payload
+    console.log('Flyp Auto Refresh: Sending Discord notification');
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -539,7 +570,8 @@ function processSaleItems(container) {
       saleData.imageUrl = itemImg.src;
     }
 
-    console.log('Extracted sale data:', saleData);
+    // MEDIUM FIX #8: Don't log sensitive sale data
+    console.log('Extracted sale data - ready to process');
 
     // Create unique ID based ONLY on item name and price (not timestamp)
     // This ensures we only send notification once per item, even if processed multiple times

@@ -196,27 +196,50 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Fetch latest release from GitHub
-      const response = await fetch('https://api.github.com/repos/rb9999/flyp-auto-refresh/releases/latest');
-      if (!response.ok) {
-        console.log('Could not check for updates:', response.status);
-        return;
-      }
+      // MEDIUM FIX #12: Add timeout and better error handling for GitHub API
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-      const release = await response.json();
-      const latestVersion = release.tag_name.replace('v', ''); // Remove 'v' prefix
-
-      // Store last check time
-      chrome.storage.local.set({ lastUpdateCheck: now });
-
-      // Compare versions
-      if (compareVersions(latestVersion, currentVersion) > 0) {
-        // New version available
-        updateText.textContent = `🆕 Version ${latestVersion} available! Click to download`;
-        updateBanner.style.display = 'block';
-        updateBanner.addEventListener('click', () => {
-          chrome.tabs.create({ url: release.html_url });
+      try {
+        const response = await fetch('https://api.github.com/repos/rb9999/flyp-auto-refresh/releases/latest', {
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          // Handle rate limiting specifically
+          if (response.status === 403) {
+            console.log('GitHub API rate limit reached, will retry later');
+          } else {
+            console.log('Could not check for updates:', response.status);
+          }
+          return;
+        }
+
+        const release = await response.json();
+        const latestVersion = release.tag_name.replace('v', ''); // Remove 'v' prefix
+
+        // Store last check time
+        chrome.storage.local.set({ lastUpdateCheck: now });
+
+        // Compare versions
+        if (compareVersions(latestVersion, currentVersion) > 0) {
+          // New version available
+          updateText.textContent = `🆕 Version ${latestVersion} available! Click to download`;
+          updateBanner.style.display = 'block';
+          updateBanner.addEventListener('click', () => {
+            chrome.tabs.create({ url: release.html_url });
+          });
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // MEDIUM FIX #12: Better error handling for network issues
+        if (fetchError.name === 'AbortError') {
+          console.log('Update check timed out after 5 seconds');
+        } else {
+          console.log('Error fetching update:', fetchError.message);
+        }
       }
     } catch (error) {
       console.log('Error checking for updates:', error);

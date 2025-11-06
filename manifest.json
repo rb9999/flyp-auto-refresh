@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flyp Orders Auto Refresh",
-  "version": "1.2",
+  "version": "2.0",
   "description": "Automatically refreshes the Flyp orders page every 30 minutes",
   "permissions": [
     "activeTab",
@@ -11,6 +11,9 @@
     "https://tools.joinflyp.com/*",
     "https://api.github.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'none';"
+  },
   "background": {
     "service_worker": "background.js"
   },
