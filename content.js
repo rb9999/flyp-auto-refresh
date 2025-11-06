@@ -7,6 +7,25 @@ let webhookUrl = ''; // Discord webhook URL
 let notificationObserver = null; // MutationObserver for notifications
 let processedNotifications = new Set(); // Track processed notifications to avoid duplicates
 let notOnOrdersPageNotificationSent = false; // Track if we've sent the "not on orders page" notification
+let isUpdatingSettings = false; // CRITICAL FIX #2: Prevent concurrent settings updates
+
+// CRITICAL FIX #1: Validate webhook URL to prevent data exfiltration
+function isValidWebhookUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+
+  try {
+    const urlObj = new URL(url);
+    // Must be HTTPS and exactly discord.com domain (not subdomain attack)
+    return urlObj.protocol === 'https:' &&
+           urlObj.hostname === 'discord.com' &&
+           urlObj.pathname.startsWith('/api/webhooks/');
+  } catch (error) {
+    console.error('Invalid webhook URL format:', error);
+    return false;
+  }
+}
 
 // Function to click the refresh button
 function clickRefreshButton() {
@@ -101,8 +120,9 @@ function stopAutoRefresh() {
     console.log('Flyp Auto Refresh: Stopping auto-refresh');
     clearInterval(autoRefreshInterval);
     autoRefreshInterval = null;
-    nextRefreshTime = null;
   }
+  // CRITICAL FIX #2: Always clear nextRefreshTime to prevent race conditions
+  nextRefreshTime = null;
 }
 
 // Function to send Discord webhook notification
@@ -111,7 +131,13 @@ async function sendDiscordNotification(saleData) {
     console.log('Flyp Auto Refresh: No webhook URL configured');
     return;
   }
-  
+
+  // CRITICAL FIX #1: Validate webhook URL before every use
+  if (!isValidWebhookUrl(webhookUrl)) {
+    console.error('Flyp Auto Refresh: Invalid webhook URL - notification blocked for security');
+    return;
+  }
+
   try {
     const embed = {
       title: "🎉 New Sale on Flyp!",
@@ -201,6 +227,12 @@ async function sendDiscordNotification(saleData) {
 async function sendNotOnOrdersPageNotification() {
   if (!webhookUrl) {
     console.log('Flyp Auto Refresh: No webhook URL configured');
+    return;
+  }
+
+  // CRITICAL FIX #1: Validate webhook URL before every use
+  if (!isValidWebhookUrl(webhookUrl)) {
+    console.error('Flyp Auto Refresh: Invalid webhook URL - notification blocked for security');
     return;
   }
 
@@ -675,21 +707,37 @@ function startNotificationMonitoring() {
 // Listen for messages from popup or background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'updateSettings') {
-    refreshIntervalMinutes = request.intervalMinutes || 30;
-    isEnabled = request.enabled !== false;
-    webhookUrl = request.webhookUrl || '';
-    
-    stopAutoRefresh();
-    if (isEnabled) {
-      startAutoRefresh();
+    // CRITICAL FIX #2: Prevent concurrent settings updates
+    if (isUpdatingSettings) {
+      console.log('Flyp Auto Refresh: Settings update already in progress, ignoring duplicate');
+      sendResponse({ success: false, error: 'Update in progress' });
+      return true;
     }
-    
-    // Start notification monitoring if webhook is configured
-    if (webhookUrl) {
-      startNotificationMonitoring();
+
+    isUpdatingSettings = true;
+
+    try {
+      const oldWebhookUrl = webhookUrl;
+
+      refreshIntervalMinutes = request.intervalMinutes || 30;
+      isEnabled = request.enabled !== false;
+      webhookUrl = request.webhookUrl || '';
+
+      stopAutoRefresh();
+      if (isEnabled) {
+        startAutoRefresh();
+      }
+
+      // Start notification monitoring if webhook is configured and changed
+      if (webhookUrl && webhookUrl !== oldWebhookUrl) {
+        startNotificationMonitoring();
+      }
+
+      sendResponse({ success: true });
+    } finally {
+      // CRITICAL FIX #2: Always release the lock
+      isUpdatingSettings = false;
     }
-    
-    sendResponse({ success: true });
   } else if (request.action === 'manualRefresh') {
     const clicked = clickRefreshButton();
     // Reset the countdown timer after manual refresh
