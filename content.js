@@ -5,9 +5,12 @@ let isEnabled = true;
 let nextRefreshTime = null; // Track when the next refresh will happen
 let webhookUrl = ''; // Discord webhook URL
 let notificationObserver = null; // MutationObserver for notifications
-let processedNotifications = new Set(); // Track processed notifications to avoid duplicates
+let processedNotifications = []; // HIGH FIX #4: Changed to array for proper LRU tracking
 let notOnOrdersPageNotificationSent = false; // Track if we've sent the "not on orders page" notification
 let isUpdatingSettings = false; // CRITICAL FIX #2: Prevent concurrent settings updates
+let pendingTimeouts = new Set(); // HIGH FIX #3: Track all timeouts to prevent memory leaks
+let backupPollingInterval = null; // HIGH FIX #3: Track backup polling interval
+const MAX_PROCESSED_NOTIFICATIONS = 50; // HIGH FIX #4: Limit to 50 entries (down from 100)
 
 // CRITICAL FIX #1: Validate webhook URL to prevent data exfiltration
 function isValidWebhookUrl(url) {
@@ -25,6 +28,22 @@ function isValidWebhookUrl(url) {
     console.error('Invalid webhook URL format:', error);
     return false;
   }
+}
+
+// HIGH FIX #3: Helper to schedule timeouts and track them for cleanup
+function scheduleTimeout(callback, delay) {
+  const timeoutId = setTimeout(() => {
+    pendingTimeouts.delete(timeoutId);
+    callback();
+  }, delay);
+  pendingTimeouts.add(timeoutId);
+  return timeoutId;
+}
+
+// HIGH FIX #3: Clear all pending timeouts
+function clearAllTimeouts() {
+  pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+  pendingTimeouts.clear();
 }
 
 // Function to click the refresh button
@@ -526,13 +545,14 @@ function processSaleItems(container) {
     // This ensures we only send notification once per item, even if processed multiple times
     const notifId = `${saleData.itemName}_${saleData.price}`;
 
-    if (!processedNotifications.has(notifId)) {
-      processedNotifications.add(notifId);
+    // HIGH FIX #4: Use array-based tracking with proper LRU cleanup
+    if (!processedNotifications.includes(notifId)) {
+      processedNotifications.push(notifId);
 
-      // Clean up old processed notifications (keep last 100)
-      if (processedNotifications.size > 100) {
-        const firstItem = processedNotifications.values().next().value;
-        processedNotifications.delete(firstItem);
+      // HIGH FIX #4: Keep only the last MAX_PROCESSED_NOTIFICATIONS entries
+      // Remove from the front (oldest) when limit exceeded
+      if (processedNotifications.length > MAX_PROCESSED_NOTIFICATIONS) {
+        processedNotifications.shift(); // Remove oldest entry
       }
 
       // Send to Discord if webhook is configured
@@ -548,10 +568,19 @@ function processSaleItems(container) {
 
 // Function to monitor for sale notifications
 function startNotificationMonitoring() {
-  // Stop existing observer if any
+  // HIGH FIX #3: Stop existing observer and clear all pending operations
   if (notificationObserver) {
     notificationObserver.disconnect();
   }
+
+  // HIGH FIX #3: Clear backup polling interval if it exists
+  if (backupPollingInterval) {
+    clearInterval(backupPollingInterval);
+    backupPollingInterval = null;
+  }
+
+  // HIGH FIX #3: Clear any pending timeouts
+  clearAllTimeouts();
 
   console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
   console.log(`🔍 [DEBUG] Notification monitoring started at ${new Date().toLocaleTimeString()}`);
@@ -620,24 +649,23 @@ function startNotificationMonitoring() {
               if (hasVirtualized) {
                 console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
                 console.log('🔍 [DEBUG] Scheduling 3 processing attempts: 200ms, 500ms, 1000ms');
-                // ReactVirtualized needs more time to render content
-                // Try multiple times with increasing delays to catch all items
-                setTimeout(() => {
+                // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+                scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 200ms delay');
                   processSaleItems(notification);
                 }, 200);
-                setTimeout(() => {
+                scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 500ms delay');
                   processSaleItems(notification);
                 }, 500);
-                setTimeout(() => {
+                scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 1000ms delay');
                   processSaleItems(notification);
                 }, 1000);
               } else {
                 console.log('🔍 [DEBUG] No ReactVirtualized detected, scheduling single 100ms processing');
-                // Regular content, just add a small delay
-                setTimeout(() => {
+                // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+                scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 100ms delay');
                   processSaleItems(notification);
                 }, 100);
@@ -664,8 +692,9 @@ function startNotificationMonitoring() {
 
   // BACKUP STRATEGY: Poll for sales count changes every 5 seconds
   // This catches sales that don't trigger DOM mutations
+  // HIGH FIX #3: Track the interval for proper cleanup
   let lastKnownSaleCount = 0;
-  setInterval(() => {
+  backupPollingInterval = setInterval(() => {
     const container = document.querySelector('.new-sales-floating-container__inner');
     if (container) {
       const currentSaleCount = container.querySelectorAll('.ant-typography-ellipsis').length;
@@ -678,20 +707,22 @@ function startNotificationMonitoring() {
         if (hasVirtualized) {
           console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
           console.log('🔍 [DEBUG] Scheduling 3 processing attempts: 200ms, 500ms, 1000ms');
-          setTimeout(() => {
+          // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+          scheduleTimeout(() => {
             console.log('🔍 [DEBUG] ⏰ Processing at 200ms delay (from polling)');
             processSaleItems(container);
           }, 200);
-          setTimeout(() => {
+          scheduleTimeout(() => {
             console.log('🔍 [DEBUG] ⏰ Processing at 500ms delay (from polling)');
             processSaleItems(container);
           }, 500);
-          setTimeout(() => {
+          scheduleTimeout(() => {
             console.log('🔍 [DEBUG] ⏰ Processing at 1000ms delay (from polling)');
             processSaleItems(container);
           }, 1000);
         } else {
-          setTimeout(() => {
+          // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+          scheduleTimeout(() => {
             console.log('🔍 [DEBUG] ⏰ Processing at 100ms delay (from polling)');
             processSaleItems(container);
           }, 100);
@@ -763,9 +794,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Load settings from storage and start
 chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) => {
-  isEnabled = result.enabled !== false; // Default to true
-  refreshIntervalMinutes = result.intervalMinutes || 30;
-  webhookUrl = result.webhookUrl || '';
+  // HIGH FIX #5: Add error handling for storage access
+  if (chrome.runtime.lastError) {
+    console.error('Flyp Auto Refresh: Error loading settings from storage:', chrome.runtime.lastError);
+    // Use default values on error
+    isEnabled = true;
+    refreshIntervalMinutes = 30;
+    webhookUrl = '';
+  } else {
+    isEnabled = result.enabled !== false; // Default to true
+    refreshIntervalMinutes = result.intervalMinutes || 30;
+    webhookUrl = result.webhookUrl || '';
+  }
 
   if (isEnabled) {
     startAutoRefresh();
@@ -780,4 +820,17 @@ chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) =
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   stopAutoRefresh();
+
+  // HIGH FIX #3: Comprehensive cleanup to prevent memory leaks
+  if (notificationObserver) {
+    notificationObserver.disconnect();
+    notificationObserver = null;
+  }
+
+  if (backupPollingInterval) {
+    clearInterval(backupPollingInterval);
+    backupPollingInterval = null;
+  }
+
+  clearAllTimeouts();
 });
