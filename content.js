@@ -181,8 +181,12 @@ function stopAutoRefresh() {
   // CRITICAL FIX #2: Always clear nextRefreshTime to prevent race conditions
   nextRefreshTime = null;
 
-  // Clear countdown state from storage
-  chrome.storage.local.remove('nextRefreshTime');
+  // Clear countdown state from storage (with error handling for context invalidation)
+  try {
+    chrome.storage.local.remove('nextRefreshTime');
+  } catch (error) {
+    // Extension context invalidated (extension was reloaded) - ignore error
+  }
 }
 
 // Function to send Discord webhook notification
