@@ -9,7 +9,7 @@ A secure, memory-efficient Chrome extension that automatically refreshes the Fly
 ## ✨ Features
 
 ### Core Functionality
-- 🔄 **Automatic Page Refresh** - Keeps your orders page up-to-date at configurable intervals (1-1440 minutes)
+- 🔄 **Automatic Page Refresh** - Keeps your orders page up-to-date at configurable intervals (10-1440 minutes)
 - 🎯 **Smart Button Detection** - Multiple strategies to reliably find and click the Flyp refresh button
 - ⏱️ **Countdown Timer** - Visual countdown showing time until next refresh
 - 🔘 **Manual Refresh** - Instant refresh button in the popup
@@ -65,7 +65,7 @@ A secure, memory-efficient Chrome extension that automatically refreshes the Fly
 Click the extension icon to access:
 
 - **Auto-refresh enabled** - Toggle automatic refreshing on/off
-- **Refresh interval** - Set minutes between refreshes (1-1440)
+- **Refresh interval** - Set minutes between refreshes (10-1440)
 - **Discord Webhook URL** - Optional: Get sale notifications in Discord
 - **Save Settings** - Apply changes immediately
 - **Refresh Now** - Manually trigger a refresh
@@ -279,7 +279,7 @@ This extension is provided as-is for personal use.
 - 💡 Set interval to 15-30 minutes for optimal balance between freshness and server load
 - 💡 Pin the extension for easy access to countdown timer
 - 💡 Use Discord notifications to avoid keeping the tab visible
-- 💡 Test your Discord webhook with a manual sale first
+- 💡 Test your Discord webhook by navigating away from the orders page and clicking refresh
 - 💡 The extension survives page refreshes and maintains settings
 
 ---

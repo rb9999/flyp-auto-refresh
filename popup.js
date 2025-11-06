@@ -93,9 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const enabled = enabledCheckbox.checked;
     const intervalMinutes = parseInt(intervalInput.value);
     const webhookUrl = webhookUrlInput.value.trim();
-    
-    if (intervalMinutes < 1 || intervalMinutes > 1440) {
-      showStatus('Please enter a value between 1 and 1440 minutes');
+
+    if (intervalMinutes < 10 || intervalMinutes > 1440) {
+      showStatus('Please enter a value between 10 and 1440 minutes');
       return;
     }
     
