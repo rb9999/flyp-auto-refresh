@@ -1,5 +1,6 @@
 # Claude Code configuration (local only)
 .claude/
+CLAUDE.md
 
 # Test files
 test-*.js
