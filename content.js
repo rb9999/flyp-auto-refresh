@@ -793,12 +793,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     try {
       const oldWebhookUrl = webhookUrl;
+      const wasEnabled = isEnabled;
 
       refreshIntervalMinutes = request.intervalMinutes || 30;
       isEnabled = request.enabled !== false;
       webhookUrl = request.webhookUrl || '';
 
+      // Always stop the current auto-refresh
       stopAutoRefresh();
+
+      // Restart auto-refresh with new settings if enabled
+      // This ensures countdown timer resets when interval changes
       if (isEnabled) {
         startAutoRefresh();
       }

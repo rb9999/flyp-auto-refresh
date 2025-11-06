@@ -111,26 +111,35 @@ document.addEventListener('DOMContentLoaded', () => {
       intervalMinutes: intervalMinutes,
       webhookUrl: webhookUrl
     }, () => {
-      // Send message to content script to update
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].url.includes('tools.joinflyp.com/orders')) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'updateSettings',
-            enabled: enabled,
-            intervalMinutes: intervalMinutes,
-            webhookUrl: webhookUrl
-          }, (response) => {
-            if (chrome.runtime.lastError) {
-              showStatus('Settings saved! Reload the page for changes to take effect.');
-            } else {
-              showStatus('Settings saved successfully!', true);
-              // Update countdown with new settings
-              setTimeout(updateCountdown, 500);
-            }
+      // Send message to content script to update (if Flyp tab is open)
+      chrome.tabs.query({}, (tabs) => {
+        // Find any Flyp orders tabs and update them all
+        const flypTabs = tabs.filter(tab => tab.url && tab.url.includes('tools.joinflyp.com/orders'));
+
+        if (flypTabs.length > 0) {
+          flypTabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'updateSettings',
+              enabled: enabled,
+              intervalMinutes: intervalMinutes,
+              webhookUrl: webhookUrl
+            }, (response) => {
+              if (chrome.runtime.lastError) {
+                // Ignore errors for background tabs
+              }
+            });
           });
+          showStatus('Settings saved successfully!', true);
         } else {
           showStatus('Settings saved! Open the Flyp orders page to activate.');
         }
+
+        // Always update countdown display (works from any tab now)
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        setTimeout(updateCountdown, 100);
       });
     });
   });
