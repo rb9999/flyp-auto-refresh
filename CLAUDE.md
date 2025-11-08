@@ -42,17 +42,24 @@ The extension targets Ant Design UI buttons. If Flyp updates their UI, the butto
 
 ### Sale Notification Detection
 - Watches for DOM mutations adding `.new-sales-floating-container__inner` elements
-- Waits 500ms after notification appears before extracting data (ensures error messages have loaded)
+- Uses multiple delayed processing attempts to handle async content loading:
+  - ReactVirtualized content: 200ms, 500ms, 1000ms, 2000ms, 3000ms
+  - Non-virtualized content: 100ms, 500ms, 1500ms
 - Extracts data from notification structure:
   - Item name from `.ant-typography-ellipsis`
   - Price from text matching `Price: $X` pattern
   - Marketplace from image alt attributes or "Sold on" text
   - Status from `.ant-tag-success`
   - Image from `.ant-image img`
-  - Error messages from `.ant-alert-error .ant-alert-message` (e.g., "Facebook unable to delist: A server error field_exception occured")
-- Maintains `processedNotifications` Set to prevent duplicate Discord messages (keeps last 50)
-- Duplicate detection uses: item name + price + timestamp (rounded to 10-second intervals)
-  - Prevents true duplicates while allowing same item to sell multiple times
+  - Error messages using multi-strategy detection:
+    1. Look inside sale container
+    2. Check next siblings (up to 3 positions)
+    3. Position-based DOM comparison
+    4. Single sale + single error = match
+- Stores pending sales in `window.flypPendingSales` Map, updating with error messages from later attempts
+- Sends Discord notification 3.5 seconds after first detection (allows all processing attempts to complete)
+- Maintains `processedNotifications` array to prevent duplicate Discord messages (keeps last 50)
+- Duplicate detection uses: item name + price (no timestamp)
 
 ### State Management
 - Settings stored in `chrome.storage.sync`: `enabled`, `intervalMinutes`, `webhookUrl`

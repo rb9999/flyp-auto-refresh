@@ -546,40 +546,72 @@ function processSaleItems(container) {
       saleData.status = statusTag.textContent.trim();
     }
 
-    // Find error alert by comparing positions in DOM
-    // The error that appears AFTER this sale but BEFORE the next sale belongs to this sale
+    // Find error alert using multiple strategies
     console.log(`Looking for error alert associated with sale item ${index + 1}...`);
 
-    // Get all children of the container as an array for position comparison
-    const allChildren = Array.from(container.querySelectorAll('*'));
-    const salePosition = allChildren.indexOf(saleContainer);
+    // Strategy 1: Look for error inside the sale container itself
+    let errorAlert = saleContainer.querySelector('.ant-alert-error');
+    if (errorAlert) {
+      console.log(`Strategy 1 SUCCESS: Error found inside sale container`);
+    }
 
-    console.log(`Sale ${index + 1} container position in DOM:`, salePosition);
+    // Strategy 2: Look for error as immediate next sibling
+    if (!errorAlert) {
+      let nextEl = saleContainer.nextElementSibling;
+      // Check up to 3 siblings ahead (in case there are wrapper divs)
+      for (let i = 0; i < 3 && nextEl; i++) {
+        if (nextEl.classList && nextEl.classList.contains('ant-alert-error')) {
+          errorAlert = nextEl;
+          console.log(`Strategy 2 SUCCESS: Error found as sibling #${i + 1}`);
+          break;
+        }
+        // Also check if this sibling contains an error alert
+        const errorInSibling = nextEl.querySelector && nextEl.querySelector('.ant-alert-error');
+        if (errorInSibling) {
+          errorAlert = errorInSibling;
+          console.log(`Strategy 2b SUCCESS: Error found inside sibling #${i + 1}`);
+          break;
+        }
+        nextEl = nextEl.nextElementSibling;
+      }
+    }
 
-    // Find the position of the next sale container (if it exists)
-    const nextSaleContainer = saleItems[index + 1] ? saleItems[index + 1].closest('div[style*="width: 100%"]') : null;
-    const nextSalePosition = nextSaleContainer ? allChildren.indexOf(nextSaleContainer) : allChildren.length;
+    // Strategy 3: Position-based search (original approach as fallback)
+    if (!errorAlert && allErrorAlerts.length > 0) {
+      const allChildren = Array.from(container.querySelectorAll('*'));
+      const salePosition = allChildren.indexOf(saleContainer);
+      const nextSaleContainer = saleItems[index + 1] ? saleItems[index + 1].closest('div[style*="width: 100%"]') : null;
+      const nextSalePosition = nextSaleContainer ? allChildren.indexOf(nextSaleContainer) : allChildren.length;
 
-    console.log(`Next sale position (or end):`, nextSalePosition);
-
-    // Look for error alerts between this sale and the next sale
-    for (const errorAlert of allErrorAlerts) {
-      const errorPosition = allChildren.indexOf(errorAlert);
-      console.log(`Error alert position:`, errorPosition);
-
-      // If the error appears after this sale but before the next sale, it belongs to this sale
-      if (errorPosition > salePosition && errorPosition < nextSalePosition) {
-        const errorMessage = errorAlert.querySelector('.ant-alert-message');
-        if (errorMessage) {
-          saleData.errorMessage = errorMessage.textContent.trim();
-          console.log(`Error message found for sale ${index + 1} (position ${errorPosition}):`, saleData.errorMessage);
+      for (const alert of allErrorAlerts) {
+        const errorPosition = allChildren.indexOf(alert);
+        if (errorPosition > salePosition && errorPosition < nextSalePosition) {
+          errorAlert = alert;
+          console.log(`Strategy 3 SUCCESS: Error found by position (${errorPosition} between ${salePosition} and ${nextSalePosition})`);
           break;
         }
       }
     }
 
-    if (!saleData.errorMessage) {
-      console.log(`No error alert found for sale ${index + 1}`);
+    // Strategy 4: If single sale and single error, they probably match
+    if (!errorAlert && saleItems.length === 1 && allErrorAlerts.length === 1) {
+      errorAlert = allErrorAlerts[0];
+      console.log(`Strategy 4 SUCCESS: Single sale with single error - assuming match`);
+    }
+
+    // Extract error message if found
+    if (errorAlert) {
+      const errorMessage = errorAlert.querySelector('.ant-alert-message');
+      if (errorMessage) {
+        saleData.errorMessage = errorMessage.textContent.trim();
+        console.log(`✅ Error message extracted for sale ${index + 1}:`, saleData.errorMessage);
+      } else {
+        // Fallback: use all text content if no .ant-alert-message found
+        saleData.errorMessage = errorAlert.textContent.trim();
+        console.log(`✅ Error message extracted (fallback) for sale ${index + 1}:`, saleData.errorMessage);
+      }
+    } else {
+      console.log(`❌ No error alert found for sale ${index + 1} after trying all strategies`);
     }
 
     // Get the image - look in the sale container first, then fall back to parent
@@ -602,21 +634,62 @@ function processSaleItems(container) {
     // This ensures we only send notification once per item, even if processed multiple times
     const notifId = `${saleData.itemName}_${saleData.price}`;
 
-    // HIGH FIX #4: Use array-based tracking with proper LRU cleanup
+    // Store the most recent sale data for this notification
+    // This allows later processing attempts to update with error messages
+    if (!window.flypPendingSales) {
+      window.flypPendingSales = new Map();
+    }
+
+    // If this is a new sale OR if we found an error message, update the stored data
+    const existingData = window.flypPendingSales.get(notifId);
+    const hasNewError = saleData.errorMessage && (!existingData || !existingData.errorMessage);
+
+    if (!existingData || hasNewError) {
+      console.log(`Storing/updating sale data for ${notifId}${hasNewError ? ' (found error message!)' : ''}`);
+      window.flypPendingSales.set(notifId, {
+        data: saleData,
+        timestamp: Date.now()
+      });
+    }
+
+    // Clean up old pending sales (older than 5 minutes)
+    const now = Date.now();
+    for (const [id, entry] of window.flypPendingSales.entries()) {
+      if (now - entry.timestamp > 5 * 60 * 1000) {
+        window.flypPendingSales.delete(id);
+      }
+    }
+
+    // Schedule sending the notification after a delay to allow error messages to load
+    // We'll only send if this notification hasn't been sent yet
     if (!processedNotifications.includes(notifId)) {
-      processedNotifications.push(notifId);
+      // Don't mark as processed immediately - wait for the delayed send
+      console.log(`Scheduling Discord notification for ${notifId} in 3.5 seconds (waiting for error messages)`);
 
-      // HIGH FIX #4: Keep only the last MAX_PROCESSED_NOTIFICATIONS entries
-      // Remove from the front (oldest) when limit exceeded
-      if (processedNotifications.length > MAX_PROCESSED_NOTIFICATIONS) {
-        processedNotifications.shift(); // Remove oldest entry
-      }
+      setTimeout(() => {
+        // Check if we already sent this notification
+        if (!processedNotifications.includes(notifId)) {
+          // Mark as processed
+          processedNotifications.push(notifId);
 
-      // Send to Discord if webhook is configured
-      if (webhookUrl && (saleData.itemName || saleData.price)) {
-        console.log('Flyp Auto Refresh: Sending sale notification to Discord');
-        sendDiscordNotification(saleData);
-      }
+          // HIGH FIX #4: Keep only the last MAX_PROCESSED_NOTIFICATIONS entries
+          if (processedNotifications.length > MAX_PROCESSED_NOTIFICATIONS) {
+            processedNotifications.shift(); // Remove oldest entry
+          }
+
+          // Get the most up-to-date data (might have error message from later processing)
+          const finalData = window.flypPendingSales.get(notifId);
+          if (finalData && webhookUrl && (finalData.data.itemName || finalData.data.price)) {
+            console.log('Flyp Auto Refresh: Sending sale notification to Discord with final data');
+            sendDiscordNotification(finalData.data);
+          }
+
+          // Clean up the pending sale
+          window.flypPendingSales.delete(notifId);
+        } else {
+          console.log('Flyp Auto Refresh: Notification already sent, skipping');
+        }
+      }, 3500); // Wait 3.5 seconds to ensure all processing attempts have completed
     } else {
       console.log('Flyp Auto Refresh: Duplicate notification ignored', notifId);
     }
@@ -705,8 +778,9 @@ function startNotificationMonitoring() {
 
               if (hasVirtualized) {
                 console.log('Flyp Auto Refresh: Detected ReactVirtualized content, waiting for render...');
-                console.log('🔍 [DEBUG] Scheduling 3 processing attempts: 200ms, 500ms, 1000ms');
+                console.log('🔍 [DEBUG] Scheduling 5 processing attempts: 200ms, 500ms, 1000ms, 2000ms, 3000ms');
                 // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+                // Multiple attempts ensure we catch error messages that load asynchronously
                 scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 200ms delay');
                   processSaleItems(notification);
@@ -719,13 +793,30 @@ function startNotificationMonitoring() {
                   console.log('🔍 [DEBUG] ⏰ Processing at 1000ms delay');
                   processSaleItems(notification);
                 }, 1000);
+                scheduleTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 2000ms delay (error messages may load late)');
+                  processSaleItems(notification);
+                }, 2000);
+                scheduleTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 3000ms delay (final attempt for late-loading errors)');
+                  processSaleItems(notification);
+                }, 3000);
               } else {
-                console.log('🔍 [DEBUG] No ReactVirtualized detected, scheduling single 100ms processing');
+                console.log('🔍 [DEBUG] No ReactVirtualized detected, scheduling multiple processing attempts');
                 // HIGH FIX #3: Use scheduleTimeout to track timeouts for cleanup
+                // Even without ReactVirtualized, errors can load late
                 scheduleTimeout(() => {
                   console.log('🔍 [DEBUG] ⏰ Processing at 100ms delay');
                   processSaleItems(notification);
                 }, 100);
+                scheduleTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 500ms delay');
+                  processSaleItems(notification);
+                }, 500);
+                scheduleTimeout(() => {
+                  console.log('🔍 [DEBUG] ⏰ Processing at 1500ms delay (for late-loading errors)');
+                  processSaleItems(notification);
+                }, 1500);
               }
             } else {
               console.log('🔍 [DEBUG] ⏭️  Skipping duplicate notification in this mutation batch');
