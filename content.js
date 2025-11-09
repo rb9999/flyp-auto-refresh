@@ -479,6 +479,8 @@ function extractSaleData(notification) {
 
 // Function to process individual sale items within a notification
 function processSaleItems(container) {
+  console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
+  console.log('🔍 [DEBUG] Processing sale items in container at', new Date().toLocaleTimeString());
   console.log('Flyp Auto Refresh: Processing sale items in container');
 
   // Find all individual sale items (they have ant-typography-ellipsis for item name)
@@ -489,6 +491,18 @@ function processSaleItems(container) {
   // First, find all error alerts in the container
   const allErrorAlerts = container.querySelectorAll('.ant-alert-error');
   console.log(`Found ${allErrorAlerts.length} error alert(s) in container`);
+
+  // Log error alert details if found
+  if (allErrorAlerts.length > 0) {
+    console.log('🔍 [DEBUG] ERROR ALERTS DETECTED:');
+    allErrorAlerts.forEach((alert, i) => {
+      const msg = alert.querySelector('.ant-alert-message');
+      console.log(`🔍 [DEBUG] Error Alert ${i + 1}:`, msg ? msg.textContent : alert.textContent);
+      console.log(`🔍 [DEBUG] Error Alert ${i + 1} HTML:`, alert.outerHTML.substring(0, 300));
+    });
+  } else {
+    console.log('🔍 [DEBUG] ⚠️ NO ERROR ALERTS FOUND - Check if error loaded yet');
+  }
 
   // Create array of sale containers with their positions
   const saleContainerData = [];
@@ -645,7 +659,15 @@ function processSaleItems(container) {
     const hasNewError = saleData.errorMessage && (!existingData || !existingData.errorMessage);
 
     if (!existingData || hasNewError) {
-      console.log(`Storing/updating sale data for ${notifId}${hasNewError ? ' (found error message!)' : ''}`);
+      console.log('🔍 [DEBUG] ───────────────────────────────────────────────────────');
+      console.log(`🔍 [DEBUG] ${existingData ? 'UPDATING' : 'STORING'} sale data for ${notifId}`);
+      if (hasNewError) {
+        console.log('🔍 [DEBUG] ✅ FOUND ERROR MESSAGE:', saleData.errorMessage);
+      }
+      console.log('🔍 [DEBUG] Current error in storage:', existingData?.errorMessage || 'NONE');
+      console.log('🔍 [DEBUG] New error from this attempt:', saleData.errorMessage || 'NONE');
+      console.log('🔍 [DEBUG] ───────────────────────────────────────────────────────');
+
       window.flypPendingSales.set(notifId, {
         data: saleData,
         timestamp: Date.now()
@@ -680,7 +702,14 @@ function processSaleItems(container) {
           // Get the most up-to-date data (might have error message from later processing)
           const finalData = window.flypPendingSales.get(notifId);
           if (finalData && webhookUrl && (finalData.data.itemName || finalData.data.price)) {
-            console.log('Flyp Auto Refresh: Sending sale notification to Discord with final data');
+            console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
+            console.log('🔍 [DEBUG] SENDING DISCORD NOTIFICATION - Final Data:');
+            console.log('🔍 [DEBUG] Item:', finalData.data.itemName);
+            console.log('🔍 [DEBUG] Price:', finalData.data.price);
+            console.log('🔍 [DEBUG] Marketplace:', finalData.data.marketplace);
+            console.log('🔍 [DEBUG] Status:', finalData.data.status);
+            console.log('🔍 [DEBUG] Error Message:', finalData.data.errorMessage || 'NONE');
+            console.log('🔍 [DEBUG] ═══════════════════════════════════════════════════════');
             sendDiscordNotification(finalData.data);
           }
 
