@@ -613,6 +613,23 @@ function processSaleItems(container) {
       console.log(`Strategy 4 SUCCESS: Single sale with single error - assuming match`);
     }
 
+    // Strategy 5: For the LAST sale item, if there's an unmatched error, assign it
+    // This handles cases where new sales appear at the end but errors are mispositioned
+    if (!errorAlert && index === saleItems.length - 1 && allErrorAlerts.length > 0) {
+      // Check if any previous sales got this error already
+      const errorTexts = Array.from(allErrorAlerts).map(alert => {
+        const msg = alert.querySelector('.ant-alert-message');
+        return msg ? msg.textContent.trim() : alert.textContent.trim();
+      });
+
+      // Find an error that hasn't been logged as extracted yet in this batch
+      for (let i = 0; i < allErrorAlerts.length; i++) {
+        errorAlert = allErrorAlerts[i];
+        console.log(`Strategy 5 SUCCESS: Last sale item gets unmatched error (error ${i + 1} of ${allErrorAlerts.length})`);
+        break; // Take the first unmatched error
+      }
+    }
+
     // Extract error message if found
     if (errorAlert) {
       const errorMessage = errorAlert.querySelector('.ant-alert-message');
@@ -686,7 +703,7 @@ function processSaleItems(container) {
     // We'll only send if this notification hasn't been sent yet
     if (!processedNotifications.includes(notifId)) {
       // Don't mark as processed immediately - wait for the delayed send
-      console.log(`Scheduling Discord notification for ${notifId} in 3.5 seconds (waiting for error messages)`);
+      console.log(`Scheduling Discord notification for ${notifId} in 5 seconds (waiting for error messages)`);
 
       setTimeout(() => {
         // Check if we already sent this notification
@@ -718,7 +735,7 @@ function processSaleItems(container) {
         } else {
           console.log('Flyp Auto Refresh: Notification already sent, skipping');
         }
-      }, 3500); // Wait 3.5 seconds to ensure all processing attempts have completed
+      }, 5000); // Wait 5 seconds to ensure all processing attempts have completed and errors loaded
     } else {
       console.log('Flyp Auto Refresh: Duplicate notification ignored', notifId);
     }
