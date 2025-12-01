@@ -307,4 +307,144 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return 0;
   }
+
+  // CSV Export Helper Functions
+  function convertToCSV(items) {
+    const csvRows = [];
+
+    // Add data rows (no headers)
+    items.forEach(item => {
+      const row = [
+        escapeCsvValue(item.itemName),
+        escapeCsvValue(item.dateListed),
+        escapeCsvValue(item.price),
+        escapeCsvValue(item.marketplaces)
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    return csvRows.join('\n');
+  }
+
+  function escapeCsvValue(value) {
+    // Handle undefined or null values
+    if (!value) {
+      return '';
+    }
+    // Convert to string if not already
+    const stringValue = String(value);
+    // Escape quotes and wrap in quotes if contains comma, quote, or newline
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return '"' + stringValue.replace(/"/g, '""') + '"';
+    }
+    return stringValue;
+  }
+
+  function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    chrome.downloads.download({
+      url: url,
+      filename: filename,
+      saveAs: true
+    });
+  }
+
+  // Export Modal Handlers
+  const exportBtn = document.getElementById('exportBtn');
+  const exportModal = document.getElementById('exportModal');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const closeExportModalBtn = document.getElementById('closeExportModalBtn');
+
+  // Open export modal when Export button clicked
+  exportBtn.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) {
+        showStatus('Error: No active tab found');
+        return;
+      }
+
+      const currentUrl = tabs[0].url;
+
+      // Check if on correct page
+      if (!currentUrl || !currentUrl.includes('tools.joinflyp.com/my-items')) {
+        showStatus('Please navigate to https://tools.joinflyp.com/my-items first');
+        return;
+      }
+
+      // Open the export modal
+      exportModal.style.display = 'block';
+    });
+  });
+
+  // Close export modal
+  closeExportModalBtn.addEventListener('click', () => {
+    exportModal.style.display = 'none';
+  });
+
+  // Close modal when clicking outside of it
+  exportModal.addEventListener('click', (event) => {
+    if (event.target === exportModal) {
+      exportModal.style.display = 'none';
+    }
+  });
+
+  // Export to CSV button in modal
+  exportCsvBtn.addEventListener('click', async () => {
+    console.log('Export CSV button clicked');
+    try {
+      // Get the active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      console.log('Active tab:', tab.url);
+
+      // Check if we're on the correct page
+      if (!tab.url || !tab.url.includes('tools.joinflyp.com/my-items')) {
+        console.log('Not on my-items page');
+        showStatus('Please navigate to https://tools.joinflyp.com/my-items first!');
+        exportModal.style.display = 'none';
+        return;
+      }
+
+      console.log('Sending scrapeInventory message to content script');
+      // Send message to content script to scrape data
+      chrome.tabs.sendMessage(tab.id, { action: 'scrapeInventory' }, (response) => {
+        console.log('Received response:', response);
+        if (chrome.runtime.lastError) {
+          console.error('Chrome runtime error:', chrome.runtime.lastError);
+          showStatus('Error: ' + chrome.runtime.lastError.message);
+          exportModal.style.display = 'none';
+          return;
+        }
+
+        if (response && response.success) {
+          const items = response.data;
+          console.log('Items scraped:', items.length);
+
+          if (items.length === 0) {
+            showStatus('No items found on the page.');
+            exportModal.style.display = 'none';
+            return;
+          }
+
+          // Convert to CSV (no headers)
+          const csv = convertToCSV(items);
+          console.log('CSV generated, downloading...');
+
+          downloadCSV(csv, 'flyp-inventory.csv');
+
+          showStatus(`Successfully exported ${items.length} items!`, true);
+          exportModal.style.display = 'none';
+        } else {
+          console.error('Failed to scrape data, response:', response);
+          showStatus('Failed to scrape data.');
+          exportModal.style.display = 'none';
+        }
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      showStatus('Error: ' + error.message);
+      exportModal.style.display = 'none';
+    }
+  });
 });

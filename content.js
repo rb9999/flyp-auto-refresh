@@ -995,6 +995,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       nextRefreshTime: nextRefreshTime,
       intervalMinutes: refreshIntervalMinutes
     });
+  } else if (request.action === 'scrapeInventory') {
+    // Scrape inventory data for CSV export
+    const items = scrapeFlypInventory();
+    sendResponse({ success: true, data: items });
   }
   return true;
 });
@@ -1023,6 +1027,71 @@ chrome.storage.sync.get(['enabled', 'intervalMinutes', 'webhookUrl'], (result) =
     startNotificationMonitoring();
   }
 });
+
+// Function to scrape inventory data from /my-items page
+function scrapeFlypInventory() {
+  const items = [];
+
+  // Find all item cards on the page
+  const itemCards = document.querySelectorAll('a[href^="/item/"]');
+
+  itemCards.forEach(card => {
+    try {
+      // Extract item name
+      const titleElement = card.querySelector('.single-item-card__title');
+      const itemName = titleElement ? titleElement.textContent.trim() : 'N/A';
+
+      // Extract date and price - only from spans with actual text
+      const infoContainer = card.querySelector('.ant-space.ant-space-horizontal.ant-space-align-center[style*="display: flex"]');
+      let dateListedText = 'N/A';
+      let priceText = 'N/A';
+
+      if (infoContainer) {
+        const infoSpans = Array.from(infoContainer.querySelectorAll('.ant-typography'))
+          .filter(span => span.textContent.trim() !== ''); // Filter out empty spans
+
+        if (infoSpans.length >= 2) {
+          dateListedText = infoSpans[0].textContent.trim();
+          priceText = infoSpans[1].textContent.trim();
+        } else if (infoSpans.length === 1) {
+          dateListedText = infoSpans[0].textContent.trim();
+        }
+      }
+
+      // Extract marketplaces
+      const marketplaces = [];
+      const marketplaceContainer = card.querySelector('.ant-space.ant-space-horizontal.ant-space-align-center[style*="margin-top: 8px"]');
+
+      if (marketplaceContainer) {
+        const marketplaceImages = marketplaceContainer.querySelectorAll('img[alt*="marketplace icon"]');
+        marketplaceImages.forEach(img => {
+          const alt = img.getAttribute('alt');
+          if (alt) {
+            // Extract marketplace name from alt text (e.g., "poshmark marketplace icon" -> "poshmark")
+            const marketplace = alt.replace(' marketplace icon', '').trim();
+            marketplaces.push(marketplace);
+          }
+        });
+      }
+
+      // Only add item if it has valid data (not all N/A)
+      if (itemName !== 'N/A' || dateListedText !== 'N/A' || priceText !== 'N/A') {
+        const item = {
+          itemName: itemName,
+          dateListed: dateListedText,
+          price: priceText,
+          marketplaces: marketplaces.join(', ')
+        };
+
+        items.push(item);
+      }
+    } catch (error) {
+      console.error('Error scraping item:', error);
+    }
+  });
+
+  return items;
+}
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {

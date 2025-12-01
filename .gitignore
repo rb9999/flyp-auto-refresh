@@ -1,0 +1,29 @@
+# Claude Code configuration (local only)
+.claude/
+CLAUDE.md
+
+# Test files
+test-*.js
+
+# Node modules (if ever needed)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package files (if creating distribution)
+*.zip
+dist/
+build/

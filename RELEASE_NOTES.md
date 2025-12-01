@@ -1,6 +1,34 @@
-# Release Notes for v1.0 Public Release
+# Release Notes
 
-## Summary
+## v2.0 - Inventory Export Feature (January 2025)
+
+### New Features
+- 📊 **Inventory Export to CSV**: Export your Flyp inventory listings from the `/my-items` page
+  - Orange "Export" button added to popup UI
+  - Modal with instructions for exporting
+  - Scrapes visible items: Name, Date Listed, Price, Marketplaces
+  - Each export creates a separate file (Chrome auto-numbers: `flyp-inventory.csv`, `flyp-inventory (1).csv`, etc.)
+  - No headers in CSV for easy manual merging
+  - Page-by-page export workflow for large inventories
+
+### Technical Changes
+- Added `downloads` permission to manifest
+- New scraping function in content.js for inventory data extraction
+- CSV generation and download functionality in popup.js
+- Export modal UI with instructions
+- Button layout adjusted to fit 4 buttons in popup
+
+### Files Modified
+1. `manifest.json` - Version updated to 2.0, added downloads permission
+2. `popup.html` - Added Export button and Export modal
+3. `popup.js` - Added CSV export handlers and helper functions
+4. `content.js` - Added inventory scraping function and message listener
+
+---
+
+## v1.0 - Public Release (January 2025)
+
+### Summary
 
 This document outlines the steps needed to prepare the repository for public release as version 1.0.
 

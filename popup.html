@@ -98,13 +98,13 @@
     
     .button-container {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       margin-top: 15px;
     }
 
     button {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
@@ -139,9 +139,18 @@
       background-color: #2196F3;
       color: white;
     }
-    
+
     .refresh-btn:hover {
       background-color: #0b7dda;
+    }
+
+    .export-btn {
+      background-color: #FF9800;
+      color: white;
+    }
+
+    .export-btn:hover {
+      background-color: #F57C00;
     }
     
     .status {
@@ -318,6 +327,7 @@
   <div class="button-container">
     <button class="save-btn" id="saveBtn">Save Settings</button>
     <button class="refresh-btn" id="refreshBtn">Refresh Now</button>
+    <button class="export-btn" id="exportBtn">Export</button>
     <button class="about-btn" id="aboutBtn" title="About">⋯</button>
   </div>
   
@@ -362,6 +372,20 @@
       </div>
       <div class="modal-footer">
         <button class="close-btn" id="closeModalBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div id="exportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Export Inventory to CSV</div>
+      <div class="modal-body">
+        <p>To export listings, ensure you on the Crosslister page and set your filters and items per page. When you click export, whatever is on your screen will be exported to a CSV file. You can move to the next page and continue exporting until all items are exported. Each export is a new file due to security. Copy/paste results into one file or merge.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="save-btn" id="exportCsvBtn" style="margin-right: 8px;">Export to CSV</button>
+        <button class="close-btn" id="closeExportModalBtn">Close</button>
       </div>
     </div>
   </div>

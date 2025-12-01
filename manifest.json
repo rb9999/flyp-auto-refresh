@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Flyp Orders Auto Refresh",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Automatically refreshes the Flyp orders page at configurable intervals with Discord sale notifications",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "downloads"
   ],
   "host_permissions": [
     "https://tools.joinflyp.com/*",
