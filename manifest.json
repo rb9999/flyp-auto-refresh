@@ -9,8 +9,7 @@
     "downloads"
   ],
   "host_permissions": [
-    "https://tools.joinflyp.com/*",
-    "https://api.github.com/*"
+    "https://tools.joinflyp.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'none';"
