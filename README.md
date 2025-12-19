@@ -1,3 +1,8 @@
+I have published this plugin on the Chrome Web Store. This version will no longer be updated.
+Please get the plugin from here:
+https://chromewebstore.google.com/detail/flyp-orders-auto-refresh/fgbbnofbebbpbhcdomedkdcnlopdpgof
+
+
 # Flyp Orders Auto Refresh Chrome Extension
 
 **Version 1.0** - Public Release
