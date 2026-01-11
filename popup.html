@@ -113,18 +113,6 @@
       transition: background-color 0.2s;
     }
 
-    .about-btn {
-      flex: 0 0 40px;
-      padding: 10px;
-      background-color: #757575;
-      color: white;
-      font-size: 16px;
-      line-height: 1;
-    }
-
-    .about-btn:hover {
-      background-color: #616161;
-    }
     
     .save-btn {
       background-color: #4CAF50;
@@ -263,15 +251,6 @@
       background-color: #616161;
     }
 
-    .about-section {
-      margin-bottom: 10px;
-    }
-
-    .about-label {
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 3px;
-    }
   </style>
 </head>
 <body>
@@ -304,7 +283,6 @@
     <button class="save-btn" id="saveBtn">Save Settings</button>
     <button class="refresh-btn" id="refreshBtn">Refresh Now</button>
     <button class="export-btn" id="exportBtn">Export</button>
-    <button class="about-btn" id="aboutBtn" title="About">⋯</button>
   </div>
   
   <div class="status" id="status"></div>
@@ -322,30 +300,6 @@
       <span>☕</span>
       <span>Buy Me a Coffee</span>
     </button>
-  </div>
-
-  <!-- About Modal -->
-  <div id="aboutModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">Flyp Sales Refresh Tool</div>
-      <div class="modal-body">
-        <div class="about-section">
-          <div class="about-label">Written by:</div>
-          <div>Roy B</div>
-        </div>
-        <div class="about-section">
-          <div class="about-label">Message:</div>
-          <div><a href="https://discord.com/users/599181983045910529" target="_blank">https://discord.com/users/599181983045910529</a></div>
-        </div>
-        <div class="about-section">
-          <div class="about-label">Discuss:</div>
-          <div><a href="https://discord.gg/Cf9NqPX3CZ" target="_blank">https://discord.gg/Cf9NqPX3CZ</a></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="close-btn" id="closeModalBtn">Close</button>
-      </div>
-    </div>
   </div>
 
   <!-- Export Modal -->

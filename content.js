@@ -488,25 +488,6 @@ function processSaleItems(container) {
 
   console.log(`Found ${saleItems.length} sale item(s)`);
 
-  // First, find all error alerts in the container
-  const allErrorAlerts = container.querySelectorAll('.ant-alert-error');
-  console.log(`Found ${allErrorAlerts.length} error alert(s) in container`);
-
-  // Log error alert details if found
-  if (allErrorAlerts.length > 0) {
-    console.log('🔍 [DEBUG] ERROR ALERTS DETECTED:');
-    allErrorAlerts.forEach((alert, i) => {
-      const msg = alert.querySelector('.ant-alert-message');
-      console.log(`🔍 [DEBUG] Error Alert ${i + 1}:`, msg ? msg.textContent : alert.textContent);
-      console.log(`🔍 [DEBUG] Error Alert ${i + 1} HTML:`, alert.outerHTML.substring(0, 300));
-    });
-  } else {
-    console.log('🔍 [DEBUG] ⚠️ NO ERROR ALERTS FOUND - Check if error loaded yet');
-  }
-
-  // Create array of sale containers with their positions
-  const saleContainerData = [];
-
   saleItems.forEach((itemElement, index) => {
     console.log(`Processing sale item ${index + 1}`);
 
@@ -560,7 +541,8 @@ function processSaleItems(container) {
       saleData.status = statusTag.textContent.trim();
     }
 
-    // Find error alert using multiple strategies
+    // Find error alert using strict proximity-based detection
+    // Only look for errors that are directly adjacent to this sale container
     console.log(`Looking for error alert associated with sale item ${index + 1}...`);
 
     // Strategy 1: Look for error inside the sale container itself
@@ -569,7 +551,8 @@ function processSaleItems(container) {
       console.log(`Strategy 1 SUCCESS: Error found inside sale container`);
     }
 
-    // Strategy 2: Look for error as immediate next sibling
+    // Strategy 2: Look for error as immediate next sibling (up to 3 siblings away)
+    // This is the ONLY external search - we only look at direct neighbors
     if (!errorAlert) {
       let nextEl = saleContainer.nextElementSibling;
       // Check up to 3 siblings ahead (in case there are wrapper divs)
@@ -587,46 +570,6 @@ function processSaleItems(container) {
           break;
         }
         nextEl = nextEl.nextElementSibling;
-      }
-    }
-
-    // Strategy 3: Position-based search (original approach as fallback)
-    if (!errorAlert && allErrorAlerts.length > 0) {
-      const allChildren = Array.from(container.querySelectorAll('*'));
-      const salePosition = allChildren.indexOf(saleContainer);
-      const nextSaleContainer = saleItems[index + 1] ? saleItems[index + 1].closest('div[style*="width: 100%"]') : null;
-      const nextSalePosition = nextSaleContainer ? allChildren.indexOf(nextSaleContainer) : allChildren.length;
-
-      for (const alert of allErrorAlerts) {
-        const errorPosition = allChildren.indexOf(alert);
-        if (errorPosition > salePosition && errorPosition < nextSalePosition) {
-          errorAlert = alert;
-          console.log(`Strategy 3 SUCCESS: Error found by position (${errorPosition} between ${salePosition} and ${nextSalePosition})`);
-          break;
-        }
-      }
-    }
-
-    // Strategy 4: If single sale and single error, they probably match
-    if (!errorAlert && saleItems.length === 1 && allErrorAlerts.length === 1) {
-      errorAlert = allErrorAlerts[0];
-      console.log(`Strategy 4 SUCCESS: Single sale with single error - assuming match`);
-    }
-
-    // Strategy 5: For the LAST sale item, if there's an unmatched error, assign it
-    // This handles cases where new sales appear at the end but errors are mispositioned
-    if (!errorAlert && index === saleItems.length - 1 && allErrorAlerts.length > 0) {
-      // Check if any previous sales got this error already
-      const errorTexts = Array.from(allErrorAlerts).map(alert => {
-        const msg = alert.querySelector('.ant-alert-message');
-        return msg ? msg.textContent.trim() : alert.textContent.trim();
-      });
-
-      // Find an error that hasn't been logged as extracted yet in this batch
-      for (let i = 0; i < allErrorAlerts.length; i++) {
-        errorAlert = allErrorAlerts[i];
-        console.log(`Strategy 5 SUCCESS: Last sale item gets unmatched error (error ${i + 1} of ${allErrorAlerts.length})`);
-        break; // Take the first unmatched error
       }
     }
 

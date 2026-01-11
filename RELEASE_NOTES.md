@@ -1,5 +1,28 @@
 # Release Notes
 
+## v2.0.1 - Error Detection Accuracy Fix (January 2025)
+
+### Bug Fixes
+- 🐛 **Fixed Incorrect Error Messages in Discord Notifications**: Discord notifications were showing error messages that didn't exist in the actual Flyp sale notifications
+  - Root cause: Error detection logic was searching too broadly across the entire notification container
+  - Strategy 5 fallback was blindly assigning unrelated errors (e.g., Facebook delist errors) to sales
+  - Solution: Simplified error detection to only 2 strict proximity-based strategies:
+    1. Look for errors inside the sale container itself
+    2. Look for errors as immediate next siblings (up to 3 positions)
+  - Removed problematic strategies (position-based, single-match assumption, and last-item fallback)
+  - Now only shows error messages that are directly associated with the specific sale
+
+### Technical Changes
+- Removed `allErrorAlerts` global container search
+- Removed Strategies 3, 4, and 5 from error detection
+- Kept only strict proximity-based detection (Strategies 1 and 2)
+- Improved accuracy of error-to-sale association
+
+### Files Modified
+1. `content.js` - Simplified `processSaleItems()` error detection logic (lines 489-591)
+
+---
+
 ## v2.0 - Inventory Export Feature (January 2025)
 
 ### New Features

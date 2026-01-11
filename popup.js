@@ -191,34 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.create({ url: 'https://buymeacoffee.com/rb9999' });
   });
 
-  // About button and modal
-  const aboutBtn = document.getElementById('aboutBtn');
-  const aboutModal = document.getElementById('aboutModal');
-  const closeModalBtn = document.getElementById('closeModalBtn');
-
-  aboutBtn.addEventListener('click', () => {
-    aboutModal.style.display = 'block';
-  });
-
-  closeModalBtn.addEventListener('click', () => {
-    aboutModal.style.display = 'none';
-  });
-
-  // Close modal when clicking outside of it
-  aboutModal.addEventListener('click', (event) => {
-    if (event.target === aboutModal) {
-      aboutModal.style.display = 'none';
-    }
-  });
-
-  // Handle link clicks in modal
-  aboutModal.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', (event) => {
-      event.preventDefault();
-      chrome.tabs.create({ url: event.target.href });
-    });
-  });
-
   // CSV Export Helper Functions
   function convertToCSV(items) {
     const csvRows = [];
@@ -322,8 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.sendMessage(tab.id, { action: 'scrapeInventory' }, (response) => {
         console.log('Received response:', response);
         if (chrome.runtime.lastError) {
+          const errorMsg = chrome.runtime.lastError.message;
           console.error('Chrome runtime error:', chrome.runtime.lastError);
-          showStatus('Error: ' + chrome.runtime.lastError.message);
+          showStatus('Error: ' + errorMsg);
           exportModal.style.display = 'none';
           return;
         }
